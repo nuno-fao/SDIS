@@ -1,4 +1,4 @@
-package com.sdis;
+package com.sdis.server;
 
 import org.junit.Test;
 

@@ -1,5 +1,3 @@
-package com.sdis;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,13 +40,13 @@ public class HeaderConcrete implements Header {
                 else {
                     throw new NewLineError();
                 }
+                //limpa os elementos já processados para ler o proximo header
                 argsList = getSubArray(argsList,lIndex);
                 outList.add(localHeader);
             }
             catch (ArrayIndexOutOfBoundsException e){
                 throw new IncorrectHeader();
             }
-
         }
     }
 

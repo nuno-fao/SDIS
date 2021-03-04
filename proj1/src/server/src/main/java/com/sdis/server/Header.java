@@ -1,4 +1,4 @@
-package com.sdis;
+package com.sdis.server;
 
 public interface Header {
     MessageType getMessageType();

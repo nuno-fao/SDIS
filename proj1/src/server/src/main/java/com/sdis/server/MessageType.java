@@ -1,9 +1,9 @@
-package com.sdis;
+package com.sdis.server;
 
 public enum MessageType {
     PUTCHUNK{
         @Override
-        public int process(Header h,String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError {
+        public int process(Header h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError {
             processSenderID(h,argsList[2]);
             processFileID(h,argsList[3]);
             processChunkNo(h,argsList[4]);
