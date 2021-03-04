@@ -1,0 +1,21 @@
+plugins {
+    id 'application'
+    id 'java'
+    id "info.solidsoft.pitest" version '1.5.1'
+}
+
+group 'com.SDIS'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+application {
+    mainClassName = "com.sdis.App"
+}
+
+dependencies {
+    implementation 'junit:junit:4.12'
+    testCompile 'info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.4.0'
+}

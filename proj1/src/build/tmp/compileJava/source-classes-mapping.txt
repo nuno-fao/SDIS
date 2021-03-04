@@ -1,0 +1,21 @@
+com/SDIS/App.java
+ com.SDIS.App
+com/SDIS/HeaderConcrete.java
+ com.SDIS.ChunkNoError
+ com.SDIS.FileIDError
+ com.SDIS.HeaderConcrete
+ com.SDIS.IncorrectHeader
+ com.SDIS.MessageTypeError
+ com.SDIS.NewLineError
+ com.SDIS.ReplicationDegError
+ com.SDIS.SenderIdError
+com/SDIS/MessageType.java
+ com.SDIS.MessageType
+ com.SDIS.MessageType$1
+ com.SDIS.MessageType$2
+ com.SDIS.MessageType$3
+ com.SDIS.MessageType$4
+ com.SDIS.MessageType$5
+ com.SDIS.MessageType$6
+com/SDIS/Header.java
+ com.SDIS.Header
