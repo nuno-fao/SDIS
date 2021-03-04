@@ -3,35 +3,62 @@ package server;
 import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Server {
     private static ConcurrentHashMap<String,String> ipTable;
     private static int serverPort, mcastPort;
     private static String mcastAdress;
-    private static MulticastSocket multicastSocket; //for multicasting
-    private static DatagramSocket datagramSocket; //for scheduled broadcasting
+    private static MulticastSocket multicastSocket;
+    private static DatagramSocket datagramSocket;
 
-    /*private static String processRequest(String request){
+    private static ScheduledExecutorService scheduledBroadcast(){
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(5);
+
+        executor.scheduleAtFixedRate(
+                new Runnable() {
+                     public void run() {
+                         byte[] content = Integer.toString(serverPort).getBytes();
+                         try {
+                             DatagramPacket mcast_packet = new DatagramPacket(content, content.length, InetAddress.getByName(mcastAdress), mcastPort);
+
+                             String hostAddress = InetAddress.getLocalHost().getHostAddress();
+                             String message = "multicast: " + mcastAdress + " " + Integer.toString(mcastPort) + ": " + hostAddress + " " + Integer.toString(serverPort);
+                             System.out.println(message);
+
+                             multicastSocket.setTimeToLive(1);
+                             multicastSocket.send(mcast_packet);
+                         } catch (IOException e) {
+                             System.out.println("Error sending multicast");
+                         }
+                     }
+                 },
+                0,
+                1,
+                TimeUnit.SECONDS);
+        return  executor;
+    }
+
+    private static String processRequest(String request){
         String[] requestArgs = request.split(" ");
 
         if(requestArgs.length < 2){
             return "-1";
         }
         else if(requestArgs[0].equals("register")){
-            IPTable.put(requestArgs[1],requestArgs[2]);
-            return valueOf(IPTable.size());
+            ipTable.put(requestArgs[1],requestArgs[2]);
+            return String.valueOf(ipTable.size());
         }
         else if(requestArgs[0].equals("lookup")){
-            String lookupResult = IPTable.get(requestArgs[1]);
+            String lookupResult = ipTable.get(requestArgs[1]);
             return Objects.requireNonNullElse(lookupResult, "-1");
         }
         return "-1";
-    }*/
-
-    private static ScheduledExecutorService scheduledBroadcast(){
-
     }
 
 
@@ -64,7 +91,29 @@ public class Server {
 
         ipTable = new ConcurrentHashMap<String,String>();
 
-        ScheduledExecutorService executorService;
+        ScheduledExecutorService executorService = scheduledBroadcast();
+
+        //start loop
+        byte[] buffer = new byte[512];
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+        while(true){
+            try{
+                //System.out.println("Waiting for client request...\n");
+                datagramSocket.receive(packet);
+                String request = new String(packet.getData());
+                System.out.println("Server: " + request);
+                String response = processRequest(request.trim());
+                packet.setData(response.getBytes(StandardCharsets.UTF_8));
+                datagramSocket.send(packet);
+                buffer = new byte[512];
+                packet = new DatagramPacket(buffer, buffer.length);
+            }
+            catch (IOException e){
+                System.out.println("Error receiving request.\n");
+                System.exit(4);
+            }
+        }
 
 
     }
