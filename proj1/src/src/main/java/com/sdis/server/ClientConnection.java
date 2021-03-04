@@ -1,3 +1,7 @@
+package com.sdis.server;
+
+import com.sdis.ClientInterface;
+
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
@@ -5,8 +9,8 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 
 public class ClientConnection extends UnicastRemoteObject implements ClientInterface {
-    public String getMessage(){
-        return "12345";
+    public String getMessage(String arg){
+        return "12345"+arg;
     }
 
     public ClientConnection() throws RemoteException {

@@ -1,3 +1,5 @@
+package com.sdis.server;
+
 public enum MessageType {
     PUTCHUNK{
         @Override

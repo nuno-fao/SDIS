@@ -1,6 +1,5 @@
 package com.sdis.server;
 
-import com.sdis.server.*;
 import org.junit.Test;
 
 import java.util.List;

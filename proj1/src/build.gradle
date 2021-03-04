@@ -4,7 +4,7 @@ plugins {
     id "info.solidsoft.pitest" version '1.5.1'
 }
 
-group 'com.SDIS'
+group 'com.sdis'
 version '1.0-SNAPSHOT'
 
 repositories {
@@ -12,10 +12,32 @@ repositories {
 }
 
 application {
-    mainClassName = "com.sdis.App"
+    mainClassName = "com.sdis.Server"
+    executableDir = 'custom_bin_dir'
 }
 
 dependencies {
     implementation 'junit:junit:4.12'
     testCompile 'info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.4.0'
 }
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'com.sdis.Server'
+        )
+    }
+}
+
+task client(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "com.sdis.Client"
+    args "arg1", "arg2"
+}
+
+task server(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "com.sdis.Server"
+    args "arg1", "arg2"
+}
+
