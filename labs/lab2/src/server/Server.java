@@ -28,13 +28,12 @@ public class Server {
                              DatagramPacket mcast_packet = new DatagramPacket(content, content.length, InetAddress.getByName(mcastAdress), mcastPort);
 
                              String hostAddress = InetAddress.getLocalHost().getHostAddress();
-                             String message = "multicast: " + mcastAdress + " " + Integer.toString(mcastPort) + ": " + hostAddress + " " + Integer.toString(serverPort);
-                             System.out.println(message);
+                             System.out.println("multicast: " + mcastAdress + " " + String.valueOf(mcastPort) + ": " + hostAddress + " " + String.valueOf(serverPort));
 
                              multicastSocket.setTimeToLive(1);
                              multicastSocket.send(mcast_packet);
                          } catch (IOException e) {
-                             System.out.println("Error sending multicast");
+                             System.out.println("Error multicasting packet");
                          }
                      }
                  },

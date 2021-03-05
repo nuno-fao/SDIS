@@ -7,8 +7,8 @@ import java.nio.charset.StandardCharsets;
 public class Client {
 
     private static DatagramSocket socket;
-    private static String mcastAddress;
-    private static int mcastPort;
+    private static String mcastAddress, serverAdress;
+    private static int mcastPort, serverPort;
 
 
     public static void main(String[] args) {
@@ -22,9 +22,8 @@ public class Client {
         mcastAddress = args[0];
         mcastPort = Integer.parseInt(args[1]);
 
-
         //open socket
-        /*try{
+        try{
             socket = new DatagramSocket();
         }
         catch(SocketException e){
@@ -32,8 +31,34 @@ public class Client {
             System.exit(2);
         }
 
-        //create packet and send
+        //lookup
+        DatagramPacket serverPacket;
+        try{
 
+            MulticastSocket mcastSocket = new MulticastSocket(mcastPort);
+            InetAddress address = InetAddress.getByName(mcastAddress);
+            mcastSocket.joinGroup(address);
+
+            byte[] buffer = new byte[1024];
+            serverPacket = new DatagramPacket(buffer, buffer.length);
+            mcastSocket.setSoTimeout(10000);
+            mcastSocket.receive(serverPacket);
+
+            mcastSocket.leaveGroup(address);
+            mcastSocket.close();
+
+
+            serverAdress =  serverPacket.getAddress().getHostAddress();
+            serverPort = Integer.parseInt(new String(serverPacket.getData()).trim());
+        }
+        catch (IOException e){
+            System.out.println("Did not receive reply from server");
+            System.exit(2);
+        }
+
+        System.out.println("multicast: " + mcastAddress + " " + String.valueOf(mcastPort) + ": " + serverAdress + " " + String.valueOf(serverPort));
+
+        //continue with the client request
         String aux = args[2] + " " + args[3];
 
         if(args.length == 5){
@@ -45,12 +70,7 @@ public class Client {
         DatagramPacket packet;
 
         try{
-            if(!args[0].equals("null")){
-                packet = new DatagramPacket(buffer,buffer.length,InetAddress.getByName(args[0]),Integer.parseInt(args[1]));
-            }
-            else{
-                packet = new DatagramPacket(buffer,buffer.length,InetAddress.getLocalHost(),Integer.parseInt(args[1]));
-            }
+            packet = new DatagramPacket(buffer,buffer.length,InetAddress.getByName(serverAdress),Integer.parseInt(args[1]));
             socket.send(packet);
 
         }
@@ -60,7 +80,6 @@ public class Client {
         }
 
         //wait for response
-
         byte[] answer = new byte[buffer.length];
         try{
             packet = new DatagramPacket(answer,answer.length);
@@ -82,6 +101,6 @@ public class Client {
             System.exit(4);
         }
 
-        socket.close();*/
+        socket.close();
     }
 }
