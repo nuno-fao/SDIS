@@ -1,4 +1,4 @@
-package com.sdis;
+package sdis;
 
 import java.rmi.Naming;
 

@@ -1,6 +1,6 @@
-package com.sdis.server;
+package sdis.server;
 
-import com.sdis.ClientInterface;
+import sdis.ClientInterface;
 
 import java.net.MalformedURLException;
 import java.rmi.Naming;

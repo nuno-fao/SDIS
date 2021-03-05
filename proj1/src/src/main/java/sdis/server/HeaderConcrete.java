@@ -1,4 +1,4 @@
-package com.sdis.server;
+package sdis.server;
 
 import java.util.ArrayList;
 import java.util.List;

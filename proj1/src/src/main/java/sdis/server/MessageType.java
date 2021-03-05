@@ -1,4 +1,4 @@
-package com.sdis.server;
+package sdis.server;
 
 public enum MessageType {
     PUTCHUNK{
