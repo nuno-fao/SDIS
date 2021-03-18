@@ -1,6 +1,6 @@
 package sdis.server;
 
-public interface Header {
+public interface Message {
     MessageType getMessageType();
 
     void setMessageType(MessageType messageType);
@@ -24,4 +24,7 @@ public interface Header {
     Integer getReplicationDeg();
 
     void setReplicationDeg(Integer replicationDeg);
+
+    String getBody();
+    void setBody(String body);
 }

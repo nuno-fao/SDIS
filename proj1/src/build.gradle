@@ -38,6 +38,5 @@ task client(type: JavaExec) {
 task server(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
-    args "arg1", "arg2"
+    args "1.1.0", "1","accesspoint", "224.0.0.1","4003", "224.0.0.2","4003", "224.0.0.3","4003"
 }
-

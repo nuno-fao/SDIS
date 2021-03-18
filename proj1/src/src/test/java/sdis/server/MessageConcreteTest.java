@@ -7,12 +7,12 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-public class HeaderConcreteTest {
+public class MessageConcreteTest {
 
     @Test
     public void TestHeaderReaderEmptyRequest() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
         try {
-            HeaderConcrete.getHeaders(" 1.0  PUTCHUNK  3 123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 8 7 \r\n \r\n\r\n  ");
+            MessageConcrete.getHeaders(" 1.0  PUTCHUNK  3 123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 8 7 \r\n \r\n\r\n  ");
             fail();
         }
         catch (IncorrectHeader ignored){
@@ -22,7 +22,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderPutChunkCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
-        Header h = HeaderConcrete.getHeaders("" +
+        Message h = MessageConcrete.getHeaders("" +
                 " 1.0" +
                 "  PUTCHUNK" +
                 "    3 " +
@@ -39,9 +39,44 @@ public class HeaderConcreteTest {
     }
 
     @Test
+    public void TestHeaderReaderPutChunkCorrect2() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+        Message h = MessageConcrete.getHeaders("" +
+                " 1.0" +
+                "  PUTCHUNK" +
+                "    3 " +
+                "123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 " +
+                "8 " +
+                "7 " +
+                "\r\n\r\nbatatas \r\n g").get(0);
+        assertEquals("1.0",h.getVersion());
+        assertEquals(MessageType.PUTCHUNK,h.getMessageType());
+        assertEquals(3,(int)(h.getSenderID()));
+        assertEquals("123aeb46ae7de0923432432123aeb46ae7de0923432432aefbc4579132321123",h.getFileID());
+        assertEquals(8,(int)(h.getChunkNo()));
+        assertEquals(7,(int)(h.getReplicationDeg()));
+        assertEquals("batatas \r\n g",h.getBody());
+    }
+    @Test
+    public void TestHeaderReaderPutChunkCorrect3() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+        Message h = MessageConcrete.getHeaders("" +
+                " 1.0" +
+                "  GETCHUNK" +
+                "    3 " +
+                "123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 " +
+                "8 " +
+                "\r\n\r\nbatatas \r\n g").get(0);
+        assertEquals("1.0",h.getVersion());
+        assertEquals(MessageType.GETCHUNK,h.getMessageType());
+        assertEquals(3,(int)(h.getSenderID()));
+        assertEquals("123aeb46ae7de0923432432123aeb46ae7de0923432432aefbc4579132321123",h.getFileID());
+        assertEquals(8,(int)(h.getChunkNo()));
+        assertEquals("",h.getBody());
+    }
+
+    @Test
     public void TestHeaderReaderPutChunkCRLF1() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -57,7 +92,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkCRLF2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -73,7 +108,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkCRLF3() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -90,7 +125,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkMessageTypeError() throws ReplicationDegError, IncorrectHeader, FileIDError, SenderIdError, ChunkNoError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUN" +
                     "    3 " +
@@ -108,7 +143,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkSenderIdError1() throws ReplicationDegError, IncorrectHeader, MessageTypeError, FileIDError, ChunkNoError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    -1 " +
@@ -125,7 +160,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkSenderIdError2() throws ReplicationDegError, IncorrectHeader, MessageTypeError, FileIDError, ChunkNoError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    f " +
@@ -141,7 +176,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderPutChunkSenderIdError3() throws ReplicationDegError, IncorrectHeader, MessageTypeError, FileIDError, ChunkNoError, SenderIdError, NewLineError {
-        HeaderConcrete.getHeaders("" +
+        MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    0 " +
@@ -154,7 +189,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkFileIDError() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, ChunkNoError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -172,7 +207,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkChunkNoError1() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -189,7 +224,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkChunkNoError2() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -205,7 +240,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkChunkNoError3() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -221,7 +256,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderPutChunkChunkNoError4() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
-        HeaderConcrete.getHeaders("" +
+        MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -233,7 +268,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkChunkNoError5() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -251,7 +286,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkReplicationDegError1() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -267,7 +302,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkReplicationDegError2() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -283,7 +318,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkReplicationDegError3() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -298,7 +333,7 @@ public class HeaderConcreteTest {
     }
     @Test
     public void TestHeaderReaderPutChunkReplicationDegError4() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, ReplicationDegError, NewLineError {
-        HeaderConcrete.getHeaders("" +
+        MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "    3 " +
@@ -310,7 +345,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderPutChunkIncorrectHeader() throws NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "72 "+"\r\n\r\n");
@@ -323,7 +358,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderStoredCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
-        Header h = HeaderConcrete.getHeaders("" +
+        Message h = MessageConcrete.getHeaders("" +
                 " 1.0" +
                 "  STORED " +
                 "    3 " +
@@ -338,7 +373,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderStored1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  STORED" +
                     "    3 " +
@@ -354,7 +389,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderStored2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  STORED" +
                     "    3 " +
@@ -370,7 +405,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderMultCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
-        List<Header> list = HeaderConcrete.getHeaders("" +
+        List<Message> list = MessageConcrete.getHeaders("" +
                 " 1.0" +
                 "  STORED " +
                 "    3 " +
@@ -400,7 +435,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderGetChunkCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
-        Header h = HeaderConcrete.getHeaders("" +
+        Message h = MessageConcrete.getHeaders("" +
                 " 1.0" +
                 "  GETCHUNK " +
                 "    3 " +
@@ -415,7 +450,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderGetChunk1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  GETCHUNK" +
                     "    3 " +
@@ -431,7 +466,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderGetChunk2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  GETCHUNK" +
                     "    3 " +
@@ -447,7 +482,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderChunkCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
-        Header h = HeaderConcrete.getHeaders("" +
+        Message h = MessageConcrete.getHeaders("" +
                 " 1.0" +
                 "  CHUNK " +
                 "    3 " +
@@ -462,7 +497,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderChunk1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  CHUNK" +
                     "    3 " +
@@ -478,7 +513,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderChunk2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  CHUNK" +
                     "    3 " +
@@ -494,7 +529,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderDeleteCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
-        Header h = HeaderConcrete.getHeaders("" +
+        Message h = MessageConcrete.getHeaders("" +
                 " 1.0" +
                 "  DELETE " +
                 "    3 " +
@@ -508,7 +543,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderDelete1() throws SenderIdError, MessageTypeError, ReplicationDegError, NewLineError, IncorrectHeader, ChunkNoError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  CHUNK" +
                     "    3 " +
@@ -523,7 +558,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderDelete2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  DELETE" +
                     "    3 " +
@@ -538,7 +573,7 @@ public class HeaderConcreteTest {
 
     @Test
     public void TestHeaderReaderRemovedCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
-        Header h = HeaderConcrete.getHeaders("" +
+        Message h = MessageConcrete.getHeaders("" +
                 " 1.0" +
                 "  REMOVED " +
                 "    3 " +
@@ -553,7 +588,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderRemoved1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  REMOVED" +
                     "    3 " +
@@ -569,7 +604,7 @@ public class HeaderConcreteTest {
     @Test
     public void TestHeaderReaderRemoved2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
         try {
-            HeaderConcrete.getHeaders("" +
+            MessageConcrete.getHeaders("" +
                     " 1.0" +
                     "  REMOVED" +
                     "    3 " +

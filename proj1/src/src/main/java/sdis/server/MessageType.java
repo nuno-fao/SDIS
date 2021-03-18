@@ -3,7 +3,7 @@ package sdis.server;
 public enum MessageType {
     PUTCHUNK{
         @Override
-        public int process(Header h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError {
+        public int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError {
             processSenderID(h,argsList[2]);
             processFileID(h,argsList[3]);
             processChunkNo(h,argsList[4]);
@@ -13,7 +13,7 @@ public enum MessageType {
     },
     STORED{
         @Override
-        public int process(Header h,String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
             processSenderID(h,argsList[2]);
             processFileID(h,argsList[3]);
             processChunkNo(h,argsList[4]);
@@ -22,7 +22,7 @@ public enum MessageType {
     },
     GETCHUNK{
         @Override
-        public int process(Header h,String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
             processSenderID(h,argsList[2]);
             processFileID(h,argsList[3]);
             processChunkNo(h,argsList[4]);
@@ -31,7 +31,7 @@ public enum MessageType {
     },
     DELETE{
         @Override
-        public int process(Header h,String []argsList) throws SenderIdError, FileIDError {
+        public int process(Message h, String []argsList) throws SenderIdError, FileIDError {
             processSenderID(h,argsList[2]);
             processFileID(h,argsList[3]);
             return 4;
@@ -39,7 +39,7 @@ public enum MessageType {
     },
     REMOVED{
         @Override
-        public int process(Header h,String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
             processSenderID(h,argsList[2]);
             processFileID(h,argsList[3]);
             processChunkNo(h,argsList[4]);
@@ -48,7 +48,7 @@ public enum MessageType {
     },
     CHUNK{
         @Override
-        public int process(Header h,String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError {
             processSenderID(h,argsList[2]);
             processFileID(h,argsList[3]);
             processChunkNo(h,argsList[4]);
@@ -56,7 +56,7 @@ public enum MessageType {
         }
     };
 
-    abstract int process(Header h,String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError;
+    abstract int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError;
     static MessageType parseMessageType(String messageType) throws MessageTypeError {
         switch (messageType) {
             case "PUTCHUNK" -> {
@@ -80,7 +80,7 @@ public enum MessageType {
             default -> throw new MessageTypeError();
         }
     }
-    void processSenderID(Header h,String senderID) throws SenderIdError {
+    void processSenderID(Message h, String senderID) throws SenderIdError {
         try {
             h.setSenderID(Integer.parseInt(senderID));
             if(h.getSenderID()<0){
@@ -91,12 +91,12 @@ public enum MessageType {
         }
     }
 
-    void processFileID(Header h,String fileID) throws FileIDError {
+    void processFileID(Message h, String fileID) throws FileIDError {
         if(fileID.length() != 64)
             throw new FileIDError();
         h.setFileID(fileID.toLowerCase());
     }
-    void processChunkNo(Header h,String chunkNo) throws ChunkNoError {
+    void processChunkNo(Message h, String chunkNo) throws ChunkNoError {
         try {
             if(chunkNo.length()>6)
                 throw new ChunkNoError();
@@ -109,7 +109,7 @@ public enum MessageType {
             throw new ChunkNoError();
         }
     }
-    void processReplicationDeg(Header h,String replicationDeg) throws ReplicationDegError {
+    void processReplicationDeg(Message h, String replicationDeg) throws ReplicationDegError {
         try {
             if (replicationDeg.length() != 1)
                 throw new ReplicationDegError();

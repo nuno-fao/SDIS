@@ -3,10 +3,19 @@ package sdis.server;
 import java.util.ArrayList;
 import java.util.List;
 
-public class HeaderConcrete implements Header {
+public class MessageConcrete implements Message {
     String version,fileID;
     Integer senderID,chunkNo,replicationDeg;
     MessageType messageType;
+    String body = "";
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public String getBody() {
+        return body;
+    }
 
     private static String[] getSubArray(String[] argsList, int startingIndex){
         String[] cp = new String[argsList.length - startingIndex - 1];
@@ -14,28 +23,42 @@ public class HeaderConcrete implements Header {
         return cp;
     }
 
-    public static List<Header> getHeaders(String headerMessage) throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, ReplicationDegError, NewLineError {
+    public static List<Message> getHeaders(String headerMessage) throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, ReplicationDegError, NewLineError {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
-        List<Header> outList = new ArrayList<>();
-        Header localHeader;
+        List<Message> outList = new ArrayList<>();
+        Message localMessage;
 
         while (true) {
             try {
                 if (argsList.length == 0) {
                     throw new NewLineError();
                 }
-                localHeader = new HeaderConcrete();
+                localMessage = new MessageConcrete();
                 if (argsList.length < 2) {
                     throw new IncorrectHeader();
                 }
-                localHeader.setVersion(argsList[0]);
-                localHeader.setMessageType(MessageType.parseMessageType(argsList[1]));
-                int lIndex = localHeader.getMessageType().process(localHeader, argsList);
+                localMessage.setVersion(argsList[0]);
+                localMessage.setMessageType(MessageType.parseMessageType(argsList[1]));
+                int lIndex = localMessage.getMessageType().process(localMessage, argsList);
 
                 //se chegou ao fim
-                if (argsList[lIndex].matches(" *(\r\n){1,2} *")) {
-                    if (argsList[lIndex].matches(" *\r\n\r\n *")) {
-                        outList.add(localHeader);
+                if (argsList[lIndex].matches(" *(\r\n){1,2}.*")) {
+                    if (argsList[lIndex].matches(" *\r\n\r\n.*")) {
+                        outList.add(localMessage);
+
+                        if(argsList.length > lIndex){
+                            for (Message m:outList) {
+                                if(m.getMessageType() == MessageType.PUTCHUNK || m.getMessageType() == MessageType.CHUNK) {
+                                    String[] sList = headerMessage.split("\r\n");
+                                    String s = "";
+                                    for (int i = 2; i < sList.length - 1; i++) {
+                                        s += sList[i] + "\r\n";
+                                    }
+                                    s += sList[sList.length - 1];
+                                    m.setBody(s);
+                                }
+                            }
+                        }
                         return outList;
                     }
                 }
@@ -44,7 +67,7 @@ public class HeaderConcrete implements Header {
                 }
                 //limpa os elementos já processados para ler o proximo header
                 argsList = getSubArray(argsList,lIndex);
-                outList.add(localHeader);
+                outList.add(localMessage);
             }
             catch (ArrayIndexOutOfBoundsException e){
                 throw new IncorrectHeader();
@@ -52,7 +75,7 @@ public class HeaderConcrete implements Header {
         }
     }
 
-    HeaderConcrete() {}
+    MessageConcrete() {}
 
     @Override
     public MessageType getMessageType() {
@@ -115,32 +138,35 @@ public class HeaderConcrete implements Header {
     }
 }
 
-class MessageTypeError extends Throwable {
+class HeaderError extends Throwable{
 
 }
 
-class SenderIdError extends Throwable{
+class MessageTypeError extends HeaderError {
 
 }
 
-class FileIDError extends Throwable{
+class SenderIdError extends HeaderError{
 
 }
 
-class ChunkNoError extends Throwable{
+class FileIDError extends HeaderError{
 
 }
 
-class ReplicationDegError extends Throwable{
+class ChunkNoError extends HeaderError{
 
 }
 
-class IncorrectHeader extends Throwable{
+class ReplicationDegError extends HeaderError{
 
 }
 
+class IncorrectHeader extends HeaderError{
 
-class NewLineError extends Throwable{
+}
+
+class NewLineError extends HeaderError{
 
 }
 
