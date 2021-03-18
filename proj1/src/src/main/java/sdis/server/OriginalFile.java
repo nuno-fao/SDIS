@@ -8,12 +8,15 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 
-public class File {
+public class OriginalFile {
     String fileID = "";
     String name;
     String editionTime;
     long size;
+    List<Integer> replicationDegree = new ArrayList<Integer>();
 
     private String getHashedString(String s){
         MessageDigest algo = null;
@@ -31,7 +34,7 @@ public class File {
         return hexString.toString();
     }
 
-    public File(String name) throws IOException {
+    public OriginalFile(String name) throws IOException {
         this.name = name;
         Path file = Path.of(name);
         BasicFileAttributes attr = Files.readAttributes(file, BasicFileAttributes.class);
@@ -43,7 +46,6 @@ public class File {
     public long getSize() {
         return size;
     }
-
 
     public String getFileID() {
         return fileID;

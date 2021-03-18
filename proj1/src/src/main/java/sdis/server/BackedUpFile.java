@@ -3,7 +3,7 @@ package sdis.server;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BackupFile {
+public class BackedUpFile {
     String fileID;
     List<Chunk> chunks = new ArrayList<Chunk>();
 
@@ -11,7 +11,7 @@ public class BackupFile {
         return chunks;
     }
 
-    BackupFile(String fileID){
+    BackedUpFile(String fileID){
         this.fileID = fileID;
     }
 
@@ -28,5 +28,4 @@ public class BackupFile {
         }
         throw new ChunkNotFound();
     }
-
 }
