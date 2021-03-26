@@ -51,7 +51,7 @@ public class Client {
                 break;
             }
             case "STATE":{
-
+                System.out.println(server.State());
                 break;
             }
             default: {

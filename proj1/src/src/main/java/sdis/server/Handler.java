@@ -44,12 +44,6 @@ public class Handler implements Runnable{
                             Server.getServer().getStoredFiles().get(message.getFileID()).addStored(message.getChunkNo(),message.getSenderID());
                             try {
                                 Files.write(Paths.get(Server.getServer().getServerName()+"/"+message.getFileID()+"/"+message.getChunkNo()),message.getBody().getBytes());
-
-                                System.out.println("AFTER"+message.getChunkNo());
-                                System.out.println("AFTER"+message.getChunkNo());
-                                System.out.println(new String(message.getBody().getBytes()));
-                                System.out.println("NEWLINE"+message.getChunkNo());
-                                System.out.println("NEWLINE"+message.getChunkNo());
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }

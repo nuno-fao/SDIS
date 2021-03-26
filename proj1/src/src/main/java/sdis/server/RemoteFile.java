@@ -1,5 +1,11 @@
 package sdis.server;
 
+import sdis.Server;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RemoteFile {
@@ -7,26 +13,20 @@ public class RemoteFile {
     ConcurrentHashMap<Integer,Chunk> chunks = new ConcurrentHashMap<>();
     RemoteFile(String fileId){
         this.fileId = fileId;
+        try {
+            Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.rdata"));
+            Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.rdata/"+fileId));
+        } catch (IOException e) {
+        }
     }
-
     public void addStored(int chunkNo,int peerId){
         if(chunks.containsKey(chunkNo))
-            chunks.get(chunkNo).peerCount.put(peerId,true);
+            if(!chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
+                chunks.get(chunkNo).getPeerList().put(peerId, true);
+                try {
+                    Files.write(Paths.get(Server.getServer().getServerName()+"/.rdata/"+fileId+"/"+chunkNo),String.valueOf(chunks.get(chunkNo).getPeerCount()+";"+chunks.get(chunkNo).repDegree).getBytes());
+                } catch (IOException e) {
+                }
+            }
     }
-
-    //true if it doesn't already exists
-    public boolean addChunk(Chunk chunk){
-        if(!chunks.containsKey(chunk.chunkNo)) {
-            chunks.put(chunk.chunkNo, chunk);
-            return true;
-        }
-        return false;
-    }
-
-    public Chunk getChunk(int chunkNo){
-        if(chunks.containsKey(chunkNo))
-            return chunks.get(chunkNo);
-        return null;
-    }
-
 }

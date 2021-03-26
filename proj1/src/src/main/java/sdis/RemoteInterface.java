@@ -8,4 +8,5 @@ public interface RemoteInterface extends Remote {
     void Restore(String filename)  throws RemoteException;
     void Delete(String filename)  throws RemoteException;
     void Reclaim(long spaceLeft)  throws RemoteException;
+    String State()  throws RemoteException;
 }

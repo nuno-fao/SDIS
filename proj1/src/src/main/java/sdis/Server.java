@@ -1,9 +1,9 @@
 package sdis;
 
 import sdis.server.*;
+import sdis.server.File;
 
-import java.io.BufferedReader;
-import java.io.IOException;
+import java.io.*;
 import java.net.DatagramPacket;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -24,6 +24,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
     MulticastHolder mdr;
     ConcurrentHashMap<String, RemoteFile> storedFiles ;
     ConcurrentHashMap<String,File> myFiles ;
+
+
     ScheduledExecutorService pool = Executors.newScheduledThreadPool(100);
 
     public synchronized ScheduledExecutorService getPool() {
@@ -107,6 +109,9 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
+        for (File t: myFiles.values()) {
+            System.out.println(t.getFileId());
+        };
     }
 
     public static void main(String[] args) throws Exception{
@@ -151,8 +156,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
         if(Files.exists(newFilePath)){
             File f;
             try {
-                f = new File(filename);
-                this.myFiles.put(f.getFileID(),f);
+                f = new File(filename,replicationDegree);
+                this.myFiles.put(f.getFileId(),f);
             } catch (IOException e) {
                 return;
             }
@@ -162,21 +167,21 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
                 int  i = 0;
                 while (true) {
                     char a[] = new char[chunkSize];
-                    myFiles.get(f.getFileID()).getChunks().put(i,new Chunk(i,f.getFileID(),replicationDegree));
+                    myFiles.get(f.getFileId()).getChunks().put(i,new Chunk(i,f.getFileId(),replicationDegree));
                     int size = io.read(a,0,chunkSize);
                     if( size == -1){
-                        String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileID(),i,replicationDegree," ");
+                        String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileId(),i,replicationDegree," ");
                         DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length());
                         packet.setAddress(mdb.getAddress());
                         packet.setPort(mdb.getPort());
-                        send(1,pool,packet,f.getFileID(),i,replicationDegree);
+                        send(1,pool,packet,f.getFileId(),i,replicationDegree);
                         return;
                     }
-                    String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileID(),i,replicationDegree,new String(a));
+                    String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileId(),i,replicationDegree,new String(a));
                     DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length());
                     packet.setAddress(mdb.getAddress());
                     packet.setPort(mdb.getPort());
-                    send(1,pool,packet,f.getFileID(),i,replicationDegree);
+                    send(1,pool,packet,f.getFileId(),i,replicationDegree);
                     i++;
                     if(size < chunkSize)
                         break;
@@ -209,4 +214,23 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
     @Override
     public void Reclaim(long spaceLeft) {
     }
+
+    @Override
+    public String State() throws RemoteException {
+        String out = "";
+        out+=("Backed Up Files Owned by the peer\n");
+        for (File f:myFiles.values()) {
+            out+="    Name:               "+f.getName()+"\n";
+            out+="    FileID:             "+f.getFileId()+"\n";
+            out+="    Desired Rep Degree: "+f.getRepDegree()+"\n";
+            out+="    CHUNKS: \n";
+            for (Chunk c : f.getChunks().values()) {
+                out+="        CHUNK NO:     "+c.getChunkNo()+"\n";
+                out+="            Perceived Rep Degree:    "+c.getPeerCount()+"\n";
+            }
+        }
+        return out;
+    }
+
+
 }

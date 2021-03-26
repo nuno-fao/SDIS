@@ -29,7 +29,7 @@ public class FileTest {
         Files.createFile(newFilePath);
         Files.write(newFilePath,"qwertyuiopasdfghjklçzxcvbnmqwer".getBytes());
 
-        File testFile = new File(filename);
+        File testFile = new File(filename,3);
 
         MessageDigest algo = MessageDigest.getInstance("SHA-256");
         BigInteger number = new BigInteger(1, algo.digest(("testfile.txt32"+ testFile.getEditionTime()).getBytes(StandardCharsets.UTF_8)));
@@ -41,7 +41,7 @@ public class FileTest {
 
         assertEquals(filename, testFile.getName());
         assertTrue(testFile.getEditionTime().length() > 0);
-        assertEquals(hexString.toString(), testFile.getFileID());
+        assertEquals(hexString.toString(), testFile.getFileId());
         assertEquals(32, testFile.getSize());
     }
 }
