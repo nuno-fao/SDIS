@@ -32,7 +32,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
         return pool;
     }
 
-    int chunkSize = 1000;
+    int chunkSize = 64000;
 
     public int getChunkSize() {
         return chunkSize;
@@ -152,6 +152,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
 
     @Override
     public void Backup(String filename, int replicationDegree) {
+        long before = System.currentTimeMillis();
         Path newFilePath = Paths.get(filename);
         if(Files.exists(newFilePath)){
             File f;
@@ -170,18 +171,24 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
                     myFiles.get(f.getFileId()).getChunks().put(i,new Chunk(i,f.getFileId(),replicationDegree));
                     int size = io.read(a,0,chunkSize);
                     if( size == -1){
-                        String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileId(),i,replicationDegree," ");
+                        String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileId(),i,replicationDegree,"");
                         DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length());
                         packet.setAddress(mdb.getAddress());
                         packet.setPort(mdb.getPort());
                         send(1,pool,packet,f.getFileId(),i,replicationDegree);
                         return;
                     }
-                    String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileId(),i,replicationDegree,new String(a));
-                    DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length());
-                    packet.setAddress(mdb.getAddress());
-                    packet.setPort(mdb.getPort());
-                    send(1,pool,packet,f.getFileId(),i,replicationDegree);
+                    String message;
+                    if(size == chunkSize) {
+                        message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, new String(a));
+                    }
+                    else {
+                        message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, new String(a).substring(0,size));
+                    }
+                    DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(),mdb.getAddress(),mdb.getPort());
+                    packet.setLength(message.length());
+                    int finalI = i;
+                    pool.execute(() -> send(1,pool,packet,f.getFileId(), finalI,replicationDegree));
                     i++;
                     if(size < chunkSize)
                         break;
@@ -190,6 +197,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
             } catch (IOException e) {
             }
         }
+        System.out.println("Backup Time: "+(System.currentTimeMillis()-before));
     }
 
     private void send(int i, ScheduledExecutorService pool, DatagramPacket packet,String fileId,int chunkNo,int repDegree){

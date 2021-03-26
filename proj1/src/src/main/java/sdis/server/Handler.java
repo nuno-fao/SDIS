@@ -21,7 +21,7 @@ public class Handler implements Runnable{
     @Override
     public void run() {
         try {
-            List<Message> messages = MessageConcrete.getHeaders(new String(packet.getData()));
+            List<Message> messages = MessageConcrete.getHeaders(new String(packet.getData()).substring(0,packet.getLength()));
             for (Message message : messages) {
                 if(message.getSenderID() == peerId)
                     return;
@@ -48,7 +48,6 @@ public class Handler implements Runnable{
                                 e.printStackTrace();
                             }
                         }
-                        System.out.println("Stored file "+message.getFileID()+" chunk "+message.getChunkNo());
                         Server.getServer().getMc().send(packet);
                         break;
                     }
@@ -56,16 +55,15 @@ public class Handler implements Runnable{
                         Server.getServer().getPool().schedule(() -> {
                             if(Server.getServer().getMyFiles().containsKey(message.getFileID())){
                             Server.getServer().getMyFiles().get(message.getFileID()).addStored(message.getChunkNo(),message.getSenderID());
-                            System.out.println("Acknowledged file Stored");
                         }
                         else if(Server.getServer().getStoredFiles().containsKey(message.getFileID()) && Server.getServer().getStoredFiles().get(message.getFileID()).chunks.containsKey(message.getChunkNo())){
                             Server.getServer().getStoredFiles().get(message.getFileID()).addStored(message.getChunkNo(),message.getSenderID());
-                            System.out.println("Acknowledged file Stored");
                         }
                         else
-                            System.out.println("Skipped");
-                            }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                                System.out.println("Skipped");
+                        }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
                         break;
+
                     }
                     case GETCHUNK -> {
                         break;

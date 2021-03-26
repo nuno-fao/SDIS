@@ -123,7 +123,7 @@ public enum MessageType {
     }
 
     public static String createPutchunk(String version, int senderId, String fileId, int chunkNo, int replicationDegree, String body){
-        return version+" PUTCHUNK "+senderId+" "+fileId+" "+chunkNo+" "+replicationDegree+" \r\n\r\n "+body;
+        return version+" PUTCHUNK "+senderId+" "+fileId+" "+chunkNo+" "+replicationDegree+" \r\n\r\n"+body;
     }
     public static String createStored(String version, int senderId, String fileId, int chunkNo){
         return version+" STORED "+senderId+" "+fileId+" "+chunkNo+" \r\n\r\n";
