@@ -29,14 +29,31 @@ jar {
     }
 }
 
-task client(type: JavaExec) {
+task clientB1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "arg1", "arg2"
+    args "accesspoint1", "BACKUP", "testfile.txt", "2"
 }
 
-task server(type: JavaExec) {
+task clientB2(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint2", "BACKUP", "t.txt", "4"
+}
+
+task server1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
-    args "1.1.0", "1","accesspoint", "224.0.0.1","4446", "224.0.0.2","4446", "224.0.0.3","4446"
+    args "1.1.0", "1","accesspoint1", "224.0.0.1","4446", "224.0.0.2","4446", "224.0.0.3","4446"
+}
+
+task server2(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1.0", "2","accesspoint2", "224.0.0.1","4446", "224.0.0.2","4446", "224.0.0.3","4446"
+}
+task server3(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1.0", "3","accesspoint3", "224.0.0.1","4446", "224.0.0.2","4446", "224.0.0.3","4446"
 }

@@ -1,37 +1,112 @@
 package sdis;
 
-import sdis.server.Address;
-import sdis.server.MulticastListener;
+import sdis.server.*;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.*;
 
 public class Server extends UnicastRemoteObject implements RemoteInterface  {
     String accessPoint;
     String version;
     long peerId;
-    MulticastListener mc;
-    MulticastListener mdb;
-    MulticastListener mdr;
+    MulticastHolder mc;
+    MulticastHolder mdb;
+    MulticastHolder mdr;
+    ConcurrentHashMap<String, RemoteFile> storedFiles ;
+    ConcurrentHashMap<String,File> myFiles ;
+    ScheduledExecutorService pool = Executors.newScheduledThreadPool(100);
 
-    public Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
+    public synchronized ScheduledExecutorService getPool() {
+        return pool;
+    }
+
+    int chunkSize = 1000;
+
+    public int getChunkSize() {
+        return chunkSize;
+    }
+
+    String serverName ;
+
+    public String getServerName() {
+        return serverName;
+    }
+
+    static Server server = null;
+
+    public static Server createServer(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
+        server = new Server(version,peerId,accessPoint,mc,mdb,mdr);
+        return server;
+    }
+    public static Server getServer(){
+        return server;
+    }
+
+    public MulticastHolder getMc() {
+        return mc;
+    }
+
+    public MulticastHolder getMdb() {
+        return mdb;
+    }
+
+    public MulticastHolder getMdr() {
+        return mdr;
+    }
+
+    public ConcurrentHashMap<String, RemoteFile> getStoredFiles() {
+        return storedFiles;
+    }
+
+    public ConcurrentHashMap<String, File> getMyFiles() {
+        return myFiles;
+    }
+
+    private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
         this.accessPoint = accessPoint;
         this.version = version;
         this.peerId = peerId;
 
-        this.mc = new MulticastListener(mc.port, mc.address, 64500,64000);
-        this.mdb = new MulticastListener(mdb.port, mdb.address, 64500,64000);
-        this.mdr = new MulticastListener(mdr.port, mdr.address, 64500,64000);
+        this.serverName = Integer.toString((int) peerId)+"_folder";
+        this.storedFiles = new ConcurrentHashMap<>();
+        this.myFiles = new ConcurrentHashMap<>();
+
+        this.mc = new MulticastHolder(mc.port, mc.address, chunkSize+500,chunkSize, (int) peerId);
+        this.mdb = new MulticastHolder(mdb.port, mdb.address, chunkSize+500,chunkSize, (int) peerId);
+        this.mdr = new MulticastHolder(mdr.port, mdr.address, chunkSize+500,chunkSize, (int) peerId);
         new Thread(this.mc).start();
         new Thread(this.mdb).start();
         new Thread(this.mdr).start();
+
+        try { //special exception handler for registry creation
+            LocateRegistry.createRegistry(1099);
+        } catch (RemoteException e) {
+        }
+
+        try {
+            Files.createDirectories(Paths.get(peerId+"_folder"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Bind this object instance to the name "RmiServer"
+        try {
+            System.out.println(accessPoint);
+            Naming.rebind(accessPoint, this);
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void main(String[] args) throws Exception{
@@ -43,7 +118,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
             } catch (Exception e) {
                 throw new Exception("invalid parameter " + args[1] + ", should be a valid number");
             }
-            new Server(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
+            createServer(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
         }
     public String getAccessPoint() {
         return accessPoint;
@@ -65,21 +140,65 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
 
         try {
             Naming.rebind(accessPoint, this);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        } catch (MalformedURLException e) {
+        } catch (RemoteException | MalformedURLException e) {
             e.printStackTrace();
         }
     }
 
     @Override
     public void Backup(String filename, int replicationDegree) {
+        Path newFilePath = Paths.get(filename);
+        if(Files.exists(newFilePath)){
+            File f;
+            try {
+                f = new File(filename);
+                this.myFiles.put(f.getFileID(),f);
+            } catch (IOException e) {
+                return;
+            }
 
+            try {
+                BufferedReader io = Files.newBufferedReader(newFilePath);
+                int  i = 0;
+                while (true) {
+                    char a[] = new char[chunkSize];
+                    myFiles.get(f.getFileID()).getChunks().put(i,new Chunk(i,f.getFileID(),replicationDegree));
+                    int size = io.read(a,0,chunkSize);
+                    if( size == -1){
+                        String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileID(),i,replicationDegree," ");
+                        DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length());
+                        packet.setAddress(mdb.getAddress());
+                        packet.setPort(mdb.getPort());
+                        send(1,pool,packet,f.getFileID(),i,replicationDegree);
+                        return;
+                    }
+                    String message = MessageType.createPutchunk("1.0", (int) this.peerId,f.getFileID(),i,replicationDegree,new String(a));
+                    DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length());
+                    packet.setAddress(mdb.getAddress());
+                    packet.setPort(mdb.getPort());
+                    send(1,pool,packet,f.getFileID(),i,replicationDegree);
+                    i++;
+                    if(size < chunkSize)
+                        break;
+                }
+
+            } catch (IOException e) {
+            }
+        }
     }
+
+    private void send(int i, ScheduledExecutorService pool, DatagramPacket packet,String fileId,int chunkNo,int repDegree){
+        mdb.send(packet);
+            pool.schedule(() -> {
+                if(Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree && i<16)
+                    send(i*2,pool,packet,fileId,chunkNo,repDegree);
+            },i,TimeUnit.SECONDS);
+    }
+
+
 
     @Override
     public void Restore(String filename) {
-
     }
 
     @Override
@@ -89,6 +208,5 @@ public class Server extends UnicastRemoteObject implements RemoteInterface  {
 
     @Override
     public void Reclaim(long spaceLeft) {
-
     }
 }

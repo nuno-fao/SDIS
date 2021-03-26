@@ -14,7 +14,7 @@ public class ServerTest {
             String[] s = {"1.1.0", "1","accesspoint", "224.0.0.1","4003", "224.0.0.2","4003", "224.0.0.3","4003"};
             Server.main(s);
 
-            Server server = new Server("1.1.0", 1,"accesspoint",new Address("224.0.0.1",4003),new Address("224.0.0.2",4003),new Address("224.0.0.3",4003));
+            Server server = Server.createServer("1.1.0", 1,"accesspoint",new Address("224.0.0.1",4003),new Address("224.0.0.2",4003),new Address("224.0.0.3",4003));
             assertEquals("accesspoint",server.getAccessPoint());
             assertEquals("1.1.0",server.getVersion());
             assertEquals(1,server.getPeerId());

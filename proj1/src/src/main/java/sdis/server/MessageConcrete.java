@@ -30,6 +30,7 @@ public class MessageConcrete implements Message {
 
         while (true) {
             try {
+
                 if (argsList.length == 0) {
                     throw new NewLineError();
                 }
@@ -76,6 +77,7 @@ public class MessageConcrete implements Message {
     }
 
     MessageConcrete() {}
+
 
     @Override
     public MessageType getMessageType() {

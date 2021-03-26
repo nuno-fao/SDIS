@@ -8,15 +8,28 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class OriginalFile {
-    String fileID = "";
+public class File {
+    String fileID ;
     String name;
     String editionTime;
     long size;
-    List<Integer> replicationDegree = new ArrayList<Integer>();
+
+    public ConcurrentHashMap<Integer, Chunk> getChunks() {
+        return chunks;
+    }
+
+    ConcurrentHashMap<Integer,Chunk> chunks = new ConcurrentHashMap<>();
+
+    public void addStored(int chunkNo,int peerId){
+        if(chunks.containsKey(chunkNo))
+            chunks.get(chunkNo).peerCount.put(peerId,true);
+    }
+
+    public Integer getReplicationDegree(int chunkNo) {
+        return chunks.get(chunkNo).peerCount.size();
+    }
 
     private String getHashedString(String s){
         MessageDigest algo = null;
@@ -27,14 +40,15 @@ public class OriginalFile {
         }
         BigInteger number = new BigInteger(1, algo.digest(s.getBytes(StandardCharsets.UTF_8)));
         StringBuilder hexString = new StringBuilder(number.toString(16));
-        while (hexString.length() < 32)
+        String out = hexString.toString();
+        while (out.length() < 64)
         {
-            hexString.insert(0, '0');
+            out+='0';
         }
-        return hexString.toString();
+        return out;
     }
 
-    public OriginalFile(String name) throws IOException {
+    public File(String name) throws IOException {
         this.name = name;
         Path file = Path.of(name);
         BasicFileAttributes attr = Files.readAttributes(file, BasicFileAttributes.class);

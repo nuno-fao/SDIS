@@ -1,30 +1,30 @@
 package sdis.server;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class Chunk {
-    String fileID;
-    long chunkNo;
-    String fileName;
+    int chunkNo = 0;
+    String fileId;
+    int repDegree = 0;
+    ConcurrentHashMap<Integer,Boolean> peerCount = new ConcurrentHashMap<>();
 
-    public Chunk(String fileID, long chunkNo,String fileName) {
-        this.fileID = fileID;
+    public Chunk(int chunkNo, String fileId,int repDegree) {
         this.chunkNo = chunkNo;
-        this.fileName = fileName;
+        this.fileId = fileId;
+        this.repDegree = repDegree;
     }
 
-    public String getFileName() {
-        return fileName;
+    public String load(String main_folder){
+        try {
+            byte f[] = Files.readAllBytes(Paths.get(main_folder+"/"+fileId+"/"+chunkNo));
+            return new String(f);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
-
-    public String getFileID() {
-        return fileID;
-    }
-
-    public long getChunkNo() {
-        return chunkNo;
-    }
-}
-
-class ChunkNotFound extends Throwable {
 
 }
-
