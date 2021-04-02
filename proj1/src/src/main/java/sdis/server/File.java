@@ -7,7 +7,6 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -73,10 +72,7 @@ public class File {
         if (this.chunks.containsKey(chunkNo))
             if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
                 this.chunks.get(chunkNo).getPeerList().put(peerId, true);
-                try {
-                    Files.write(Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo), (this.chunks.get(chunkNo).getPeerCount() + ";" + this.chunks.get(chunkNo).repDegree + ";" + this.name).getBytes());
-                } catch (IOException e) {
-                }
+                this.chunks.get(chunkNo).update();
             }
     }
 

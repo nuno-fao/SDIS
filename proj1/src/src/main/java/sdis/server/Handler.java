@@ -29,9 +29,7 @@ public class Handler implements Runnable {
                 switch (message.getMessageType()) {
                     case PUTCHUNK -> {
                         String m = MessageType.createStored(message.getVersion(), this.peerId, message.getFileID(), message.getChunkNo());
-                        DatagramPacket packet = new DatagramPacket(m.getBytes(), m.length());
-                        packet.setAddress(Server.getServer().getMc().getAddress());
-                        packet.setPort(Server.getServer().getMc().getPort());
+                        DatagramPacket packet = new DatagramPacket(m.getBytes(), m.length(), Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                         if (!Server.getServer().getStoredFiles().containsKey(message.getFileID())) {
                             Server.getServer().getStoredFiles().put(message.getFileID(), new RemoteFile(message.getFileID()));
                             try {
@@ -77,6 +75,28 @@ public class Handler implements Runnable {
                         break;
                     }
                     case REMOVED -> {
+                        System.out.println("REMOVED");
+                        Chunk chunk = null;
+                        if (Server.getServer().getMyFiles().containsKey(message.getFileID())) {
+                            System.out.println("My Files");
+                            chunk = Server.getServer().getMyFiles().get(message.getFileID()).getChunks().get(message.getChunkNo());
+
+                        } else if (Server.getServer().getStoredFiles().containsKey(message.getFileID())) {
+                            System.out.println("Remote Files");
+                            chunk = Server.getServer().getStoredFiles().get(message.getFileID()).getChunks().get(message.getChunkNo());
+
+                        }
+                        if (chunk != null) {
+                            if (chunk.getPeerList() != null) {
+                                if (chunk.getPeerList().containsKey(message.getSenderID())) {
+                                    chunk.getPeerList().remove(message.getSenderID());
+                                    this.chunkUpdate(chunk);
+                                }
+                            } else {
+                                chunk.subtractRealDegree();
+                                this.chunkUpdate(chunk);
+                            }
+                        }
                         break;
                     }
                     case CHUNK -> {
@@ -86,6 +106,17 @@ public class Handler implements Runnable {
             }
         } catch (HeaderError headerError) {
             headerError.printStackTrace();
+        }
+    }
+
+    private void chunkUpdate(Chunk chunk) {
+        chunk.update();
+        if (chunk.getRepDegree() > chunk.getPeerCount()) {
+            chunk.getShallSend().set(true);
+            Server.getServer().getPool().schedule(() -> {
+                if (chunk.getShallSend().get())
+                    chunk.backup(Server.getServer().getPool());
+            }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
         }
     }
 }

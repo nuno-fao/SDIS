@@ -6,17 +6,20 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Chunk {
-    int repDegree = 0;
+    private int repDegree = 0;
     private int realDegree = 0;
     private int chunkNo = 0;
     private String fileId;
     private ConcurrentHashMap<Integer, Boolean> peerCount = null;
 
+    private AtomicBoolean shallSend = new AtomicBoolean(true);
 
     public Chunk(int chunkNo, String fileId, int repDegree) {
         this.chunkNo = chunkNo;
@@ -30,6 +33,14 @@ public class Chunk {
         this.fileId = fileId;
         this.repDegree = repDegree;
         this.realDegree = realDegree;
+    }
+
+    public String getFileId() {
+        return this.fileId;
+    }
+
+    void subtractRealDegree() {
+        this.realDegree--;
     }
 
     public int getChunkNo() {
@@ -51,7 +62,7 @@ public class Chunk {
         return this.repDegree;
     }
 
-    public void backup(ScheduledExecutorService pool) {
+    void backup(ScheduledExecutorService pool) {
         Path name = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + this.chunkNo);
         if (Files.exists(name)) {
             try {
@@ -74,4 +85,14 @@ public class Chunk {
         }, i, TimeUnit.SECONDS);
     }
 
+    void update() {
+        try {
+            Files.write(Paths.get(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + this.chunkNo), (this.getPeerCount() + ";" + this.repDegree).getBytes());
+        } catch (IOException e) {
+        }
+    }
+
+    AtomicBoolean getShallSend() {
+        return this.shallSend;
+    }
 }

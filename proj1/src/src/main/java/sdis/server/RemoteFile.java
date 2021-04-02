@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,10 +26,7 @@ public class RemoteFile {
         if (this.chunks.containsKey(chunkNo))
             if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
                 this.chunks.get(chunkNo).getPeerList().put(peerId, true);
-                try {
-                    Files.write(Paths.get(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + chunkNo), (this.chunks.get(chunkNo).getPeerCount() + ";" + this.chunks.get(chunkNo).repDegree).getBytes());
-                } catch (IOException e) {
-                }
+                this.chunks.get(chunkNo).update();
             }
     }
 

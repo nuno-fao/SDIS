@@ -240,9 +240,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     int size = io.read(a, 0, this.chunkSize);
                     if (size == -1) {
                         String message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, "");
-                        DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length());
-                        packet.setAddress(this.mdb.getAddress());
-                        packet.setPort(this.mdb.getPort());
+                        DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), this.mdb.getAddress(), this.mdb.getPort());
                         this.backupAux(1, this.pool, packet, f.getFileId(), i, replicationDegree);
                         return false;
                     }
@@ -298,7 +296,6 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     .map(Path::toFile)
                     .forEach(java.io.File::delete);
         } catch (IOException e) {
-            e.printStackTrace();
             return false;
         }
         return true;
@@ -315,6 +312,11 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     @Override
     public void Reclaim(long spaceLeft) {
+        /*for (Chunk chunk : this.chunks.values()) {
+            String m = MessageType.createRemoved("1.0", (int) Server.getServer().getPeerId(), chunk.getFileId(), chunk.getChunkNo());
+            DatagramPacket packet = new DatagramPacket(m.getBytes(), m.length(), Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+            Server.getServer().getPool().execute(() -> Server.getServer().getMc().send(packet));
+        }*/
     }
 
     @Override
