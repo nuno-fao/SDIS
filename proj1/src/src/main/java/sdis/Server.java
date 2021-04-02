@@ -303,8 +303,6 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             return false;
         byte message[] = MessageType.createDelete("1.0", (int) this.peerId, file);
         DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-        this.deleteAux(0, this.pool, packet);
-
         try {
             Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + file))
                     .sorted(Comparator.reverseOrder())
@@ -313,6 +311,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         } catch (IOException e) {
             return false;
         }
+        this.deleteAux(0, this.pool, packet);
         System.out.println("Delete Time: " + (System.currentTimeMillis() - before));
         return true;
     }
