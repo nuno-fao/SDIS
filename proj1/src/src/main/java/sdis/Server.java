@@ -241,7 +241,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                         byte message[] = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, "".getBytes());
                         DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                         this.backupAux(1, this.pool, packet, f.getFileId(), i, replicationDegree);
-                        return false;
+                        return true;
                     }
                     byte message[];
                     if (size == Server.getServer().chunkSize)
