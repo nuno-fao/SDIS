@@ -122,14 +122,18 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                         java.io.File file = (java.io.File) files[j];
                         List<String> info = Files.readAllLines(file.toPath());
                         File f = null;
-                        if (info.size() == 1) {
+                        if (info.size() == 2) {
                             List<String> dets = Arrays.asList((new String(info.get(0).getBytes())).split(";"));
                             if (dets.size() != 3) {
                                 continue;
                             }
                             if (f == null)
                                 f = new File(dets.get(2), Integer.parseInt(dets.get(1)));
-                            f.getChunks().put(Integer.parseInt(file.getName()), new Chunk(Integer.parseInt(file.getName()), directory.getName(), Integer.parseInt(dets.get(1)), Integer.parseInt(dets.get(0))));
+                            Chunk c = new Chunk(Integer.parseInt(file.getName()), directory.getName(), Integer.parseInt(dets.get(1)));
+                            f.getChunks().put(Integer.parseInt(file.getName()), c);
+                            for (String s : info.get(1).split(";")) {
+                                c.getPeerList().put(Integer.parseInt(s), true);
+                            }
                         } else
                             continue;
                         this.myFiles.put(f.getFileId(), f);

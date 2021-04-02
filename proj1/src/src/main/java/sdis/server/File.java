@@ -7,9 +7,11 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class File {
@@ -69,11 +71,21 @@ public class File {
     }
 
     void addStored(int chunkNo, int peerId) {
-        if (this.chunks.containsKey(chunkNo))
-            if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
-                this.chunks.get(chunkNo).getPeerList().put(peerId, true);
-                this.chunks.get(chunkNo).update("ldata");
+        if (this.chunks.containsKey(chunkNo)) {
+            Chunk c = this.chunks.get(chunkNo);
+            if (!c.getPeerList().containsKey(peerId)) {
+                c.getPeerList().put(peerId, true);
+                try {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append((c.getPeerCount() + ";" + c.getRepDegree() + ";" + this.name + "\n"));
+                    for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); ) {
+                        sb.append(it.next() + ";");
+                    }
+                    Files.write(Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo), sb.toString().getBytes());
+                } catch (IOException e) {
+                }
             }
+        }
     }
 
     public Integer getReplicationDegree(int chunkNo) {

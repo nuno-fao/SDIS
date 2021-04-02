@@ -28,6 +28,7 @@ public class Chunk {
         this.peerCount = new ConcurrentHashMap<>();
     }
 
+
     public Chunk(int chunkNo, String fileId, int repDegree, int realDegree) {
         this.chunkNo = chunkNo;
         this.fileId = fileId;
@@ -47,7 +48,7 @@ public class Chunk {
         return this.chunkNo;
     }
 
-    ConcurrentHashMap<Integer, Boolean> getPeerList() {
+    public ConcurrentHashMap<Integer, Boolean> getPeerList() {
         return this.peerCount;
     }
 
