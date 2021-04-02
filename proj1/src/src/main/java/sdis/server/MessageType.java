@@ -96,6 +96,29 @@ public enum MessageType {
         return outputStream.toByteArray();
     }
 
+    public static byte[] createGetchunk(String version, int senderId, String fileId, int chunkNo) {
+        byte a[] = (version + " GETCHUNK " + senderId + " " + fileId + " " + chunkNo +  " \r\n\r\n").getBytes();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(a.length);
+        try {
+            outputStream.write(a);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return outputStream.toByteArray();
+    }
+
+    public static byte[] createChunk(String version, int senderId, String fileId, int chunkNo, byte[] body) {
+        byte a[] = (version + " CHUNK " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(body.length + a.length);
+        try {
+            outputStream.write(a);
+            outputStream.write(body);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return outputStream.toByteArray();
+    }
+
     public static byte[] createStored(String version, int senderId, String fileId, int chunkNo) {
         return (version + " STORED " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
     }

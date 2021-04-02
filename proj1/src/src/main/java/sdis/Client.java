@@ -31,7 +31,9 @@ public class Client {
                 break;
             }
             case "RESTORE": {
-                server.Restore(args[2]);
+                if(!server.Restore(args[2])){
+                    System.out.println("No Such file " + args[2]);
+                }
                 break;
             }
             case "DELETE": {

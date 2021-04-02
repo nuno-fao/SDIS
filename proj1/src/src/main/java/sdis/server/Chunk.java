@@ -113,6 +113,28 @@ public class Chunk {
         buffer.clear();
     }
 
+    void getChunk(ScheduledExecutorService pool){
+        Path name = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + this.chunkNo);
+        if (Files.exists(name)) {
+            try {
+                byte file_content[];
+                file_content = Files.readAllBytes(name);
+                byte body[] = MessageType.createChunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, file_content);
+                DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                this.getChunk(pool, 1, packet);
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
+    private void getChunk(ScheduledExecutorService pool, int i, DatagramPacket packet) {
+        Server.getServer().getMdr().send(packet);
+        pool.schedule(() -> {
+            if (Server.getServer().getMyFiles().get(this.fileId).getReplicationDegree(this.chunkNo) < this.repDegree && i < 16)
+                this.backup(pool, i * 2, packet);
+        }, i, TimeUnit.SECONDS);
+    }
+
     AtomicBoolean getShallSend() {
         return this.shallSend;
     }

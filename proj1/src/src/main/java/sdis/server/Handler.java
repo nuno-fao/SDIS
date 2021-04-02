@@ -2,7 +2,10 @@ package sdis.server;
 
 import sdis.Server;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
@@ -145,6 +148,12 @@ public class Handler implements Runnable {
 
                     }
                     case GETCHUNK -> {
+
+                        if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
+                            RemoteFile f = Server.getServer().getStoredFiles().get(header.getFileID());
+                            Chunk toSend = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
+                            toSend.getChunk(Server.getServer().getPool());
+                        }
                         break;
                     }
                     case DELETE -> {
@@ -181,6 +190,11 @@ public class Handler implements Runnable {
                         break;
                     }
                     case CHUNK -> {
+                        if(Server.getServer().getFileRestoring().containsKey(header.getFileID())){
+                            if(!Server.getServer().getFileRestoring().get(header.getFileID()).containsKey(header.getChunkNo())){
+                                Server.getServer().getFileRestoring().get(header.getFileID()).put(header.getChunkNo(),body);
+                            }
+                        }
                         break;
                     }
                 }
