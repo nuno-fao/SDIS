@@ -128,4 +128,7 @@ public enum MessageType {
     public static String createStored(String version, int senderId, String fileId, int chunkNo){
         return version+" STORED "+senderId+" "+fileId+" "+chunkNo+" \r\n\r\n";
     }
+    public static String createDelete(String version, int senderId, String fileId){
+        return version+" DELETE "+senderId+" "+fileId+" \r\n\r\n";
+    }
 }
