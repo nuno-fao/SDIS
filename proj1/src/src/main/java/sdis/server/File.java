@@ -4,6 +4,8 @@ import sdis.Server;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,41 +13,33 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class File {
-    String fileId;
-    String name;
-    String editionTime;
-    long size;
-    int repDegree;
+    private String fileId;
+    private String name;
+    private String editionTime;
+    private long size;
+    private ConcurrentHashMap<Integer, Chunk> chunks = new ConcurrentHashMap<>();
 
-    public int getRepDegree() {
-        return repDegree;
+    public File(String name, int repDegree) throws IOException {
+        this.name = name;
+        Path file = Path.of(name);
+        BasicFileAttributes attr = Files.readAttributes(file, BasicFileAttributes.class);
+        this.editionTime = "" + attr.lastModifiedTime().toMillis();
+        this.size = attr.size();
+        this.fileId = getHashedString(name + (this.size) + this.editionTime);
+
+        Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.ldata"));
+        Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.ldata/" + this.fileId));
     }
 
-    public ConcurrentHashMap<Integer, Chunk> getChunks() {
-        return chunks;
-    }
-
-    ConcurrentHashMap<Integer,Chunk> chunks = new ConcurrentHashMap<>();
-
-    public void addStored(int chunkNo,int peerId){
-        if(chunks.containsKey(chunkNo))
-            if(!chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
-                chunks.get(chunkNo).getPeerList().put(peerId, true);
-                try {
-                    Files.write(Paths.get(Server.getServer().getServerName()+"/.ldata/"+fileId+"/"+chunkNo), (chunks.get(chunkNo).getPeerCount() + ";" + chunks.get(chunkNo).repDegree + ";" + name).getBytes());
-                } catch (IOException e) {
-                }
-            }
-    }
-
-    public Integer getReplicationDegree(int chunkNo) {
-        return chunks.get(chunkNo).getPeerCount();
-    }
-
-    private String getHashedString(String s){
+    private static String getHashedString(String s) {
         MessageDigest algo = null;
         try {
             algo = MessageDigest.getInstance("SHA-256");
@@ -53,42 +47,85 @@ public class File {
             e.printStackTrace();
         }
         BigInteger number = new BigInteger(1, algo.digest(s.getBytes(StandardCharsets.UTF_8)));
-        StringBuilder hexString = new StringBuilder(number.toString(16));
-        String out = hexString.toString();
-        while (out.length() < 64)
-        {
-            out+='0';
+        StringBuilder out = new StringBuilder(number.toString(16));
+        while (out.length() < 64) {
+            out.append('0');
         }
-        return out;
+        return out.toString();
     }
 
-    public File(String name,int repDegree) throws IOException {
-        this.name = name;
-        Path file = Path.of(name);
-        BasicFileAttributes attr = Files.readAttributes(file, BasicFileAttributes.class);
-        editionTime = ""+attr.lastModifiedTime().toMillis();
-        size = attr.size();
-        fileId = getHashedString(name+(size)+editionTime);
-        this.repDegree = repDegree;
+    public static String getFileInfo(String name) {
+        if (Files.exists(Path.of(name))) {
+            Path file = Path.of(name);
 
-        Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.ldata"));
-        Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.ldata/"+ fileId));
+            BasicFileAttributes attr = null;
+            try {
+                attr = Files.readAttributes(file, BasicFileAttributes.class);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            String editionTime = "" + attr.lastModifiedTime().toMillis();
+            long size = attr.size();
+            return getHashedString(name + (size) + editionTime);
+        }
+        return null;
     }
 
-    public long getSize() {
-        return size;
+    public ConcurrentHashMap<Integer, Chunk> getChunks() {
+        return this.chunks;
+    }
+
+    void addStored(int chunkNo, int peerId) {
+        if (this.chunks.containsKey(chunkNo)) {
+            Chunk c = this.chunks.get(chunkNo);
+            if (!c.getPeerList().containsKey(peerId)) {
+                c.getPeerList().put(peerId, true);
+                StringBuilder sb = new StringBuilder();
+                sb.append((c.getPeerCount() + ";" + c.getRepDegree() + ";" + this.name + "\n"));
+                for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); ) {
+                    sb.append(it.next() + ";");
+                }
+
+
+                Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo);
+                AsynchronousFileChannel fileChannel = null;
+                try {
+                    fileChannel = AsynchronousFileChannel.open(
+                            path, WRITE, CREATE);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                byte out[] = sb.toString().getBytes();
+                ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+                buffer.put(out);
+                buffer.flip();
+
+                Future<Integer> operation = fileChannel.write(buffer, 0);
+                buffer.clear();
+            }
+        }
+    }
+
+    public Integer getReplicationDegree(int chunkNo) {
+        return this.chunks.get(chunkNo).getPeerCount();
+    }
+
+    long getSize() {
+        return this.size;
     }
 
     public String getFileId() {
-        return fileId;
+        return this.fileId;
     }
 
     public String getName() {
-        return name;
+        return this.name;
     }
 
-    public String getEditionTime() {
-        return editionTime;
+    String getEditionTime() {
+        return this.editionTime;
     }
 
 }

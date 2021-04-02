@@ -3,44 +3,117 @@ package sdis.server;
 import sdis.Server;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class Chunk {
-    int chunkNo = 0;
-    String fileId;
-    int repDegree = 0;
+    private int repDegree = 0;
+    private int realDegree = 0;
+    private int chunkNo = 0;
+    private String fileId;
+    private ConcurrentHashMap<Integer, Boolean> peerCount = null;
+    private AtomicBoolean shallSend = new AtomicBoolean(true);
 
-    public int getChunkNo() {
-        return chunkNo;
-    }
+    public Chunk(int chunkNo, String fileId, int repDegree) {
 
-    public synchronized ConcurrentHashMap<Integer, Boolean> getPeerList() {
-        return peerCount;
-    }
-
-    public int getPeerCount(){
-        return peerCount.size();
-    }
-
-    private ConcurrentHashMap<Integer,Boolean> peerCount = new ConcurrentHashMap<>();
-
-    public Chunk(int chunkNo, String fileId,int repDegree) {
         this.chunkNo = chunkNo;
         this.fileId = fileId;
         this.repDegree = repDegree;
+        this.peerCount = new ConcurrentHashMap<>();
     }
 
-    public String load(String main_folder){
+
+    public Chunk(int chunkNo, String fileId, int repDegree, int realDegree) {
+        this.chunkNo = chunkNo;
+        this.fileId = fileId;
+        this.repDegree = repDegree;
+        this.realDegree = realDegree;
+    }
+
+    public String getFileId() {
+        return this.fileId;
+    }
+
+    void subtractRealDegree() {
+        this.realDegree--;
+    }
+
+    public int getChunkNo() {
+        return this.chunkNo;
+    }
+
+    public ConcurrentHashMap<Integer, Boolean> getPeerList() {
+        if (this.peerCount == null)
+            this.peerCount = new ConcurrentHashMap<>();
+        return this.peerCount;
+    }
+
+    public int getPeerCount() {
+        if (this.peerCount != null)
+            return this.peerCount.size();
+        return this.realDegree;
+    }
+
+
+    public int getRepDegree() {
+        return this.repDegree;
+    }
+
+    void backup(ScheduledExecutorService pool) {
+        Path name = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + this.chunkNo);
+        if (Files.exists(name)) {
+            try {
+                byte file_content[];
+                file_content = Files.readAllBytes(name);
+                byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
+                DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                this.backup(pool, 1, packet);
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
+    private void backup(ScheduledExecutorService pool, int i, DatagramPacket packet) {
+        Server.getServer().getMdb().send(packet);
+        pool.schedule(() -> {
+            if (Server.getServer().getMyFiles().get(this.fileId).getReplicationDegree(this.chunkNo) < this.repDegree && i < 16)
+                this.backup(pool, i * 2, packet);
+        }, i, TimeUnit.SECONDS);
+    }
+
+    void update(String folder) {
+        Path path = Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo);
+        AsynchronousFileChannel fileChannel = null;
         try {
-            byte f[] = Files.readAllBytes(Paths.get(main_folder+"/"+fileId+"/"+chunkNo));
-            return new String(f);
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, CREATE);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return "";
+
+        byte out[] = (this.getPeerCount() + ";" + this.repDegree).getBytes();
+        ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+        buffer.put(out);
+        buffer.flip();
+
+        Future<Integer> operation = fileChannel.write(buffer, 0);
+        buffer.clear();
     }
 
+    AtomicBoolean getShallSend() {
+        return this.shallSend;
+    }
 }
