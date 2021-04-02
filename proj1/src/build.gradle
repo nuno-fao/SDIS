@@ -55,7 +55,7 @@ task clientD1(type: JavaExec) {
 task clientD2(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint2", "DELETE", "testfile1.txt"
+    args "accesspoint2", "DELETE", "testfile.txt"
 }
 
 task server1(type: JavaExec) {

@@ -225,6 +225,11 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 f = new File(filename, replicationDegree);
                 if (this.myFiles.containsKey(File.getFileInfo(filename)))
                     return "file already backed up";
+                for (File file : this.myFiles.values()) {
+                    if (filename.compareTo(file.getName()) == 0) {
+                        return "ahahahahahaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+                    }
+                }
                 this.myFiles.put(f.getFileId(), f);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -302,7 +307,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             return false;
         }
         this.deleteAux(0, this.pool, packet);
-        System.out.println("Delete Time: " + (System.currentTimeMillis() - before));
+        this.myFiles.remove(file);
+        System.out.println("Delete Time for file " + file + ": " + (System.currentTimeMillis() - before));
         return true;
     }
 
