@@ -18,7 +18,6 @@ public class Chunk {
     private int chunkNo = 0;
     private String fileId;
     private ConcurrentHashMap<Integer, Boolean> peerCount = null;
-
     private AtomicBoolean shallSend = new AtomicBoolean(true);
 
     public Chunk(int chunkNo, String fileId, int repDegree) {
@@ -75,8 +74,7 @@ public class Chunk {
                 byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
                 DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                 this.backup(pool, 1, packet);
-            } catch (IOException e) {
-                return;
+            } catch (IOException ignored) {
             }
         }
     }
@@ -92,7 +90,7 @@ public class Chunk {
     void update(String folder) {
         try {
             Files.write(Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo), (this.getPeerCount() + ";" + this.repDegree).getBytes());
-        } catch (IOException e) {
+        } catch (IOException ignored) {
         }
     }
 

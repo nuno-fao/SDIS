@@ -41,12 +41,11 @@ public class File {
             e.printStackTrace();
         }
         BigInteger number = new BigInteger(1, algo.digest(s.getBytes(StandardCharsets.UTF_8)));
-        StringBuilder hexString = new StringBuilder(number.toString(16));
-        String out = hexString.toString();
+        StringBuilder out = new StringBuilder(number.toString(16));
         while (out.length() < 64) {
-            out += '0';
+            out.append('0');
         }
-        return out;
+        return out.toString();
     }
 
     public static String getFileInfo(String name) {
