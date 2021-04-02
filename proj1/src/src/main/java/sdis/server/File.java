@@ -26,6 +26,8 @@ public class File {
     private String editionTime;
     private long size;
     private ConcurrentHashMap<Integer, Chunk> chunks = new ConcurrentHashMap<>();
+    private int numChunks = -1;
+    private long time;
 
     public File(String name, int repDegree) throws IOException {
         this.name = name;
@@ -34,6 +36,7 @@ public class File {
         this.editionTime = "" + attr.lastModifiedTime().toMillis();
         this.size = attr.size();
         this.fileId = getHashedString(name + (this.size) + this.editionTime);
+        this.time = System.currentTimeMillis();
 
         Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.ldata"));
         Files.createDirectories(Path.of(Server.getServer().getServerName() + "/.ldata/" + this.fileId));
@@ -69,6 +72,22 @@ public class File {
             return getHashedString(name + (size) + editionTime);
         }
         return null;
+    }
+
+    public long getTime() {
+        return this.time;
+    }
+
+    public void setTime(long time) {
+        this.time = time;
+    }
+
+    public int getNumChunks() {
+        return this.numChunks;
+    }
+
+    public void setNumChunks(int numChunks) {
+        this.numChunks = numChunks;
     }
 
     public ConcurrentHashMap<Integer, Chunk> getChunks() {

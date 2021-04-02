@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 public class MulticastHolder implements Runnable {
     private long last = System.currentTimeMillis();
@@ -15,6 +18,7 @@ public class MulticastHolder implements Runnable {
     private InetAddress address;
     private int bufferSize;
     private int peerId;
+    private ExecutorService pool = Executors.newFixedThreadPool(10);
 
     public MulticastHolder(int port, String host, int bufferSize, int dataSize, int peerId) {
         this.port = port;
@@ -57,7 +61,7 @@ public class MulticastHolder implements Runnable {
             try {
                 this.socket.receive(packet);
 
-                Server.getServer().getPool().execute(new Handler(packet, this.peerId));
+                this.pool.execute(new Handler(packet, this.peerId));
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -32,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import static java.lang.Thread.sleep;
+
 
 public class Server extends UnicastRemoteObject implements RemoteInterface {
     private static Registry registry;
@@ -44,7 +46,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private MulticastHolder mdr;
     private ConcurrentHashMap<String, RemoteFile> storedFiles;
     private ConcurrentHashMap<String, File> myFiles;
-    private ScheduledExecutorService pool = Executors.newScheduledThreadPool(100);
+    private ScheduledExecutorService pool = Executors.newScheduledThreadPool(10);
     private int chunkSize = 64000;
     private String serverName;
     private AtomicInteger agains = new AtomicInteger(0);
@@ -264,11 +266,12 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     }
                     DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                     int finalI = i;
-                    this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree);
+                    this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), (new Random().nextInt(10) + 1) * i, TimeUnit.MILLISECONDS);
                     i++;
                     if (size < this.chunkSize)
                         break;
                 }
+                this.myFiles.get(f.getFileId()).setNumChunks(i);
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -282,10 +285,11 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private void backupAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
         this.mdb.send(packet);
         pool.schedule(() -> {
+            if (Server.getServer().getMyFiles().get(fileId).getChunks().size() == Server.getServer().getMyFiles().get(fileId).getNumChunks())
+                System.out.println("Time: " + (System.currentTimeMillis() - Server.getServer().getMyFiles().get(fileId).getTime()));
             if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree) {
                 if (i < 16) {
-                    //System.out.println("Against: " + this.agains.getAndIncrement());
-                    System.out.println("Again");
+                    System.out.println("Against: " + i + " " + this.agains.getAndIncrement() + " " + chunkNo);
                     this.backupAux(i * 2, pool, packet, fileId, chunkNo, repDegree);
                 } else {
                     System.out.println("Gave up");
