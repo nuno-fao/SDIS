@@ -6,11 +6,14 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Handler implements Runnable {
+    private static AtomicInteger skipped = new AtomicInteger(0);
     private DatagramPacket packet;
     private int peerId;
 
@@ -22,27 +25,43 @@ public class Handler implements Runnable {
     @Override
     public void run() {
         try {
-            List<Message> messages = MessageConcrete.getHeaders(new String(this.packet.getData()).substring(0, this.packet.getLength()));
-            for (Message message : messages) {
-                if (message.getSenderID() == this.peerId)
+            String[] head_body = new String(this.packet.getData()).stripLeading().split("\r\n\r\n", 2);
+            byte body[] = null;
+            byte tmp[] = this.packet.getData();
+            int i = 0;
+            for (; i < this.packet.getLength() - 3; i++) {
+                if (tmp[i] == 0xd && tmp[i + 1] == 0xa && tmp[i + 2] == 0xd && tmp[i + 3] == 0xa) {
+                    break;
+                }
+            }
+            i += 4;
+            if (head_body.length > 1) {
+                if (this.packet.getLength() > i) {
+                    body = Arrays.copyOfRange(this.packet.getData(), i, this.packet.getLength());
+                }
+            }
+            List<Header> headers = HeaderConcrete.getHeaders(head_body[0] + "\r\n\r\n");
+
+            for (Header header : headers) {
+                if (header.getSenderID() == this.peerId)
                     return;
-                switch (message.getMessageType()) {
+                switch (header.getMessageType()) {
                     case PUTCHUNK -> {
-                        String m = MessageType.createStored(message.getVersion(), this.peerId, message.getFileID(), message.getChunkNo());
-                        DatagramPacket packet = new DatagramPacket(m.getBytes(), m.length(), Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-                        if (!Server.getServer().getStoredFiles().containsKey(message.getFileID())) {
-                            Server.getServer().getStoredFiles().put(message.getFileID(), new RemoteFile(message.getFileID()));
+                        byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
+                        DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                        if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
                             try {
-                                Files.createDirectories(Paths.get(Server.getServer().getServerName() + "/" + message.getFileID()));
+                                Files.createDirectories(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID()));
                             } catch (IOException e) {
-                                e.printStackTrace();
+                                System.exit(1);
                             }
+                            Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
                         }
-                        if (!Server.getServer().getStoredFiles().get(message.getFileID()).chunks.containsKey(message.getChunkNo())) {
-                            Server.getServer().getStoredFiles().get(message.getFileID()).chunks.put(message.getChunkNo(), new Chunk(message.getChunkNo(), message.getFileID(), message.getReplicationDeg()));
-                            Server.getServer().getStoredFiles().get(message.getFileID()).addStored(message.getChunkNo(), message.getSenderID());
+                        if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
+                            Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg()));
+                            Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
                             try {
-                                Files.write(Paths.get(Server.getServer().getServerName() + "/" + message.getFileID() + "/" + message.getChunkNo()), message.getBody().getBytes());
+                                Files.write(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo()), body);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -53,12 +72,13 @@ public class Handler implements Runnable {
                     case STORED -> {
                         Server.getServer().getPool().schedule(() ->
                         {
-                            if (Server.getServer().getMyFiles().containsKey(message.getFileID())) {
-                                Server.getServer().getMyFiles().get(message.getFileID()).addStored(message.getChunkNo(), message.getSenderID());
-                            } else if (Server.getServer().getStoredFiles().containsKey(message.getFileID()) && Server.getServer().getStoredFiles().get(message.getFileID()).chunks.containsKey(message.getChunkNo())) {
-                                Server.getServer().getStoredFiles().get(message.getFileID()).addStored(message.getChunkNo(), message.getSenderID());
-                            } else
-                                System.out.println("Skipped");
+                            if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
+                                Server.getServer().getMyFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+                            } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
+                                Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+                            } else {
+                                System.out.println(skipped.getAndIncrement());
+                            }
                         }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
                         break;
 
@@ -67,9 +87,9 @@ public class Handler implements Runnable {
                         break;
                     }
                     case DELETE -> {
-                        if (Server.getServer().getStoredFiles().containsKey(message.getFileID())) {
-                            RemoteFile f = Server.getServer().getStoredFiles().get(message.getFileID());
-                            Server.getServer().getStoredFiles().remove(message.getFileID());
+                        if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
+                            RemoteFile f = Server.getServer().getStoredFiles().get(header.getFileID());
+                            Server.getServer().getStoredFiles().remove(header.getFileID());
                             f.delete();
                         }
                         break;
@@ -77,19 +97,19 @@ public class Handler implements Runnable {
                     case REMOVED -> {
                         System.out.println("REMOVED");
                         Chunk chunk = null;
-                        if (Server.getServer().getMyFiles().containsKey(message.getFileID())) {
+                        if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
                             System.out.println("My Files");
-                            chunk = Server.getServer().getMyFiles().get(message.getFileID()).getChunks().get(message.getChunkNo());
+                            chunk = Server.getServer().getMyFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
-                        } else if (Server.getServer().getStoredFiles().containsKey(message.getFileID())) {
+                        } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
                             System.out.println("Remote Files");
-                            chunk = Server.getServer().getStoredFiles().get(message.getFileID()).getChunks().get(message.getChunkNo());
+                            chunk = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
                         }
                         if (chunk != null) {
                             if (chunk.getPeerList() != null) {
-                                if (chunk.getPeerList().containsKey(message.getSenderID())) {
-                                    chunk.getPeerList().remove(message.getSenderID());
+                                if (chunk.getPeerList().containsKey(header.getSenderID())) {
+                                    chunk.getPeerList().remove(header.getSenderID());
                                     this.chunkUpdate(chunk);
                                 }
                             } else {
@@ -110,7 +130,7 @@ public class Handler implements Runnable {
     }
 
     private void chunkUpdate(Chunk chunk) {
-        chunk.update();
+        chunk.update("rdata");
         if (chunk.getRepDegree() > chunk.getPeerCount()) {
             chunk.getShallSend().set(true);
             Server.getServer().getPool().schedule(() -> {

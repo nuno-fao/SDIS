@@ -72,7 +72,7 @@ public class File {
         if (this.chunks.containsKey(chunkNo))
             if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
                 this.chunks.get(chunkNo).getPeerList().put(peerId, true);
-                this.chunks.get(chunkNo).update();
+                this.chunks.get(chunkNo).update("ldata");
             }
     }
 

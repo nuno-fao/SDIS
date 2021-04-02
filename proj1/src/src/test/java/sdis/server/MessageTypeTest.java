@@ -1,14 +1,9 @@
 package sdis.server;
 
-import org.junit.Test;
-import sdis.Server;
-
-import static org.junit.Assert.*;
-
 public class MessageTypeTest {
 
 
-    @Test
+    /*@Test
     public void createPutchunk() {
         assertEquals("1.0 PUTCHUNK 1 a1e15ae1473f59fa91650b54d8a7e67f8d4758f66891f323313208ced27aa71a 0 4 \r\n\r\nbatatas",MessageType.createPutchunk("1.0",1, File.getFileInfo("testfile1.txt"),0,4,"batatas"));
     }
@@ -21,5 +16,5 @@ public class MessageTypeTest {
     @Test
     public void createDelete() {
         assertEquals("1.0 DELETE 1 a1e15ae1473f59fa91650b54d8a7e67f8d4758f66891f323313208ced27aa71a \r\n\r\n",MessageType.createDelete("1.0",1, File.getFileInfo("testfile1.txt")));
-    }
+    }*/
 }

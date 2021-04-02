@@ -47,7 +47,7 @@ public class Chunk {
         return this.chunkNo;
     }
 
-    synchronized ConcurrentHashMap<Integer, Boolean> getPeerList() {
+    ConcurrentHashMap<Integer, Boolean> getPeerList() {
         return this.peerCount;
     }
 
@@ -68,9 +68,9 @@ public class Chunk {
             try {
                 byte file_content[];
                 file_content = Files.readAllBytes(name);
-                String body = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, new String(file_content));
-                DatagramPacket packet = new DatagramPacket(body.getBytes(), body.length(), Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-                this.backup(pool, 0, packet);
+                byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
+                DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                this.backup(pool, 1, packet);
             } catch (IOException e) {
                 return;
             }
@@ -85,9 +85,9 @@ public class Chunk {
         }, i, TimeUnit.SECONDS);
     }
 
-    void update() {
+    void update(String folder) {
         try {
-            Files.write(Paths.get(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + this.chunkNo), (this.getPeerCount() + ";" + this.repDegree).getBytes());
+            Files.write(Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo), (this.getPeerCount() + ";" + this.repDegree).getBytes());
         } catch (IOException e) {
         }
     }

@@ -2,8 +2,9 @@ package sdis;
 
 import sdis.server.*;
 
-import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -21,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class Server extends UnicastRemoteObject implements RemoteInterface {
@@ -36,23 +38,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private ScheduledExecutorService pool = Executors.newScheduledThreadPool(100);
     private int chunkSize = 64000;
     private String serverName;
+    private AtomicInteger agains = new AtomicInteger(0);
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
-        this.accessPoint = accessPoint;
-        this.version = version;
-        this.peerId = peerId;
-
-        this.serverName = Integer.toString((int) peerId) + "_folder";
-        this.storedFiles = new ConcurrentHashMap<>();
-        this.myFiles = new ConcurrentHashMap<>();
-
-        this.mc = new MulticastHolder(mc.port, mc.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
-        this.mdb = new MulticastHolder(mdb.port, mdb.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
-        this.mdr = new MulticastHolder(mdr.port, mdr.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
-        new Thread(this.mc).start();
-        new Thread(this.mdb).start();
-        new Thread(this.mdr).start();
 
         try { //special exception handler for registry creation
             LocateRegistry.createRegistry(1099);
@@ -72,6 +61,21 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
+
+        this.accessPoint = accessPoint;
+        this.version = version;
+        this.peerId = peerId;
+
+        this.serverName = Integer.toString((int) peerId) + "_folder";
+        this.storedFiles = new ConcurrentHashMap<>();
+        this.myFiles = new ConcurrentHashMap<>();
+
+        this.mc = new MulticastHolder(mc.port, mc.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
+        this.mdb = new MulticastHolder(mdb.port, mdb.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
+        this.mdr = new MulticastHolder(mdr.port, mdr.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
+        new Thread(this.mc).start();
+        new Thread(this.mdb).start();
+        new Thread(this.mdr).start();
 
 
     }
@@ -165,7 +169,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         }
     }
 
-    public synchronized ScheduledExecutorService getPool() {
+    public ScheduledExecutorService getPool() {
         return this.pool;
     }
 
@@ -228,38 +232,42 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 f = new File(filename, replicationDegree);
                 this.myFiles.put(f.getFileId(), f);
             } catch (IOException e) {
+                e.printStackTrace();
                 return false;
             }
 
             try {
-                BufferedReader io = Files.newBufferedReader(newFilePath);
+                InputStream io = new FileInputStream(filename);
                 int i = 0;
                 while (true) {
-                    char a[] = new char[this.chunkSize];
+                    byte a[] = new byte[this.chunkSize];
                     this.myFiles.get(f.getFileId()).getChunks().put(i, new Chunk(i, f.getFileId(), replicationDegree));
-                    int size = io.read(a, 0, this.chunkSize);
+
+                    int size = io.read(a);
                     if (size == -1) {
-                        String message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, "");
-                        DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), this.mdb.getAddress(), this.mdb.getPort());
+                        byte message[] = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, "".getBytes());
+                        DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                         this.backupAux(1, this.pool, packet, f.getFileId(), i, replicationDegree);
                         return false;
                     }
-                    String message;
-                    if (size == this.chunkSize) {
-                        message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, new String(a));
-                    } else {
-                        message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, new String(a).substring(0, size));
+                    byte message[];
+                    if (size == Server.getServer().chunkSize)
+                        message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, a);
+                    else {
+                        byte[] subArray = Arrays.copyOfRange(a, 0, size);
+                        message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, subArray);
                     }
-                    DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), this.mdb.getAddress(), this.mdb.getPort());
-                    packet.setLength(message.length());
+                    System.out.println(message.length);
+                    DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                     int finalI = i;
-                    this.pool.execute(() -> this.backupAux(0, this.pool, packet, f.getFileId(), finalI, replicationDegree));
+                    this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), new Random().nextInt(401), TimeUnit.MILLISECONDS);
                     i++;
                     if (size < this.chunkSize)
                         break;
                 }
 
             } catch (IOException e) {
+                e.printStackTrace();
             }
             System.out.println("Backup Time: " + (System.currentTimeMillis() - before));
             return true;
@@ -270,8 +278,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private void backupAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
         this.mdb.send(packet);
         pool.schedule(() -> {
-            if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree && i < 16)
+            if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree && i < 16) {
+                System.out.println(this.agains.getAndIncrement());
                 this.backupAux(i * 2, pool, packet, fileId, chunkNo, repDegree);
+            }
         }, i, TimeUnit.SECONDS);
     }
 
@@ -283,11 +293,12 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     @Override
     public boolean Delete(String filename) {
+        long before = System.currentTimeMillis();
         String file = File.getFileInfo(filename);
         if (file == null)
             return false;
-        String message = MessageType.createDelete("1.0", (int) this.peerId, file);
-        DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), this.mc.getAddress(), this.mc.getPort());
+        byte message[] = MessageType.createDelete("1.0", (int) this.peerId, file);
+        DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
         this.deleteAux(0, this.pool, packet);
 
         try {
@@ -298,6 +309,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         } catch (IOException e) {
             return false;
         }
+        System.out.println("Delete Time: " + (System.currentTimeMillis() - before));
         return true;
     }
 
