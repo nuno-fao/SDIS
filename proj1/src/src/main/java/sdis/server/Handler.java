@@ -4,13 +4,22 @@ import sdis.Server;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class Handler implements Runnable {
     private static AtomicInteger skipped = new AtomicInteger(0);
@@ -21,6 +30,33 @@ public class Handler implements Runnable {
     Handler(DatagramPacket packet, int peerId) {
         this.packet = packet;
         this.peerId = peerId;
+    }
+
+    private static String readContent(Path file) {
+        AsynchronousFileChannel fileChannel = null;
+        try {
+            fileChannel = AsynchronousFileChannel.open(
+                    file, StandardOpenOption.READ);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+
+        Future<Integer> operation = fileChannel.read(buffer, 0);
+
+        // run other code as operation continues in background
+        try {
+            operation.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        String fileContent = new String(buffer.array()).trim();
+        buffer.clear();
+        return fileContent;
     }
 
     @Override
@@ -62,11 +98,37 @@ public class Handler implements Runnable {
                         if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
                             Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg()));
                             Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+
+                            Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                            AsynchronousFileChannel fileChannel = null;
                             try {
-                                Files.write(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo()), body);
+                                fileChannel = AsynchronousFileChannel.open(
+                                        path, WRITE, CREATE);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
+
+                            ByteBuffer buffer = ByteBuffer.allocate(body.length);
+
+                            buffer.put(body);
+                            buffer.flip();
+
+                            Future<Integer> operation = fileChannel.write(buffer, 0);
+                            buffer.clear();
+
+                            /*//run other code as operation continues in background
+                            try {
+                                operation.get();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            } catch (ExecutionException e) {
+                                e.printStackTrace();
+                            }*/
+                            /*try {
+                                Files.write(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo()), body);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }*/
                         }
                         Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
                         break;

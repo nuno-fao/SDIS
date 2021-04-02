@@ -241,7 +241,6 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 while (true) {
                     byte a[] = new byte[this.chunkSize];
                     this.myFiles.get(f.getFileId()).getChunks().put(i, new Chunk(i, f.getFileId(), replicationDegree));
-
                     int size = io.read(a);
                     if (size == -1) {
                         byte message[] = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, "".getBytes());
@@ -258,7 +257,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     }
                     DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                     int finalI = i;
-                    this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                    this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree);
                     i++;
                     if (size < this.chunkSize)
                         break;
@@ -274,12 +273,16 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     }
 
     private void backupAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
-        System.out.println(fileId + "//" + chunkNo + " sent");
         this.mdb.send(packet);
         pool.schedule(() -> {
-            if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree && i < 16) {
-                System.out.println("Against: " + this.agains.getAndIncrement());
-                this.backupAux(i * 2, pool, packet, fileId, chunkNo, repDegree);
+            if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree) {
+                if (i < 16) {
+                    //System.out.println("Against: " + this.agains.getAndIncrement());
+                    System.out.println("Again");
+                    this.backupAux(i * 2, pool, packet, fileId, chunkNo, repDegree);
+                } else {
+                    System.out.println("Gave up");
+                }
             }
         }, i, TimeUnit.SECONDS);
     }

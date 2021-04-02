@@ -1,15 +1,14 @@
 package sdis.server;
 
+import sdis.Server;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class MulticastHolder implements Runnable {
     private long last = System.currentTimeMillis();
-    private ExecutorService pool = Executors.newCachedThreadPool();
     private MulticastSocket socket;
     private int port;
     private String host;
@@ -58,7 +57,7 @@ public class MulticastHolder implements Runnable {
             try {
                 this.socket.receive(packet);
 
-                this.pool.execute(new Handler(packet, this.peerId));
+                Server.getServer().getPool().execute(new Handler(packet, this.peerId));
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -4,13 +4,19 @@ import sdis.Server;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class Chunk {
     private int repDegree = 0;
@@ -88,10 +94,23 @@ public class Chunk {
     }
 
     void update(String folder) {
+        Path path = Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo);
+        AsynchronousFileChannel fileChannel = null;
         try {
-            Files.write(Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo), (this.getPeerCount() + ";" + this.repDegree).getBytes());
-        } catch (IOException ignored) {
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, CREATE);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
+        byte out[] = (this.getPeerCount() + ";" + this.repDegree).getBytes();
+        ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+        buffer.put(out);
+        buffer.flip();
+
+        Future<Integer> operation = fileChannel.write(buffer, 0);
+        buffer.clear();
     }
 
     AtomicBoolean getShallSend() {

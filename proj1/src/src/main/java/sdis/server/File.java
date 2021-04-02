@@ -4,6 +4,8 @@ import sdis.Server;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,6 +15,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class File {
     private String fileId;
@@ -74,16 +80,30 @@ public class File {
             Chunk c = this.chunks.get(chunkNo);
             if (!c.getPeerList().containsKey(peerId)) {
                 c.getPeerList().put(peerId, true);
+                StringBuilder sb = new StringBuilder();
+                sb.append((c.getPeerCount() + ";" + c.getRepDegree() + ";" + this.name + "\n"));
+                for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); ) {
+                    sb.append(it.next() + ";");
+                }
+
+
+                Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo);
+                AsynchronousFileChannel fileChannel = null;
                 try {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append((c.getPeerCount() + ";" + c.getRepDegree() + ";" + this.name + "\n"));
-                    for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); ) {
-                        sb.append(it.next() + ";");
-                    }
-                    Files.write(Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo), sb.toString().getBytes());
+                    fileChannel = AsynchronousFileChannel.open(
+                            path, WRITE, CREATE);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+
+                byte out[] = sb.toString().getBytes();
+                ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+                buffer.put(out);
+                buffer.flip();
+
+                Future<Integer> operation = fileChannel.write(buffer, 0);
+                buffer.clear();
             }
         }
     }
