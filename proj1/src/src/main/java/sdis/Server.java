@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -26,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class Server extends UnicastRemoteObject implements RemoteInterface {
+    private static Registry registry;
     private static Server server = null;
     private long peerId;
     private String accessPoint;
@@ -43,22 +45,9 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
 
-        try { //special exception handler for registry creation
-            LocateRegistry.createRegistry(1099);
-        } catch (RemoteException e) {
-        }
-
         try {
             Files.createDirectories(Paths.get(peerId + "_folder"));
         } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        // Bind this object instance to the name "RmiServer"
-        try {
-            System.out.println(accessPoint);
-            Naming.rebind(accessPoint, this);
-        } catch (MalformedURLException e) {
             e.printStackTrace();
         }
 
@@ -261,7 +250,6 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                         byte[] subArray = Arrays.copyOfRange(a, 0, size);
                         message = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, subArray);
                     }
-                    System.out.println(message.length);
                     DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                     int finalI = i;
                     this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), new Random().nextInt(401), TimeUnit.MILLISECONDS);
@@ -283,7 +271,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         this.mdb.send(packet);
         pool.schedule(() -> {
             if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree && i < 16) {
-                System.out.println(this.agains.getAndIncrement());
+                System.out.println("Against: " + this.agains.getAndIncrement());
                 this.backupAux(i * 2, pool, packet, fileId, chunkNo, repDegree);
             }
         }, i, TimeUnit.SECONDS);

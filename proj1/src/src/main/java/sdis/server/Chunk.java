@@ -22,6 +22,7 @@ public class Chunk {
     private AtomicBoolean shallSend = new AtomicBoolean(true);
 
     public Chunk(int chunkNo, String fileId, int repDegree) {
+
         this.chunkNo = chunkNo;
         this.fileId = fileId;
         this.repDegree = repDegree;
@@ -49,6 +50,8 @@ public class Chunk {
     }
 
     public ConcurrentHashMap<Integer, Boolean> getPeerList() {
+        if (this.peerCount == null)
+            this.peerCount = new ConcurrentHashMap<>();
         return this.peerCount;
     }
 

@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Handler implements Runnable {
     private static AtomicInteger skipped = new AtomicInteger(0);
+    static private long time = System.currentTimeMillis();
     private DatagramPacket packet;
     private int peerId;
 
@@ -47,6 +48,7 @@ public class Handler implements Runnable {
                     return;
                 switch (header.getMessageType()) {
                     case PUTCHUNK -> {
+                        //System.out.println(System.currentTimeMillis() - this.time);
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                         if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
@@ -66,20 +68,17 @@ public class Handler implements Runnable {
                                 e.printStackTrace();
                             }
                         }
-                        Server.getServer().getMc().send(packet);
+                        Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
                         break;
                     }
                     case STORED -> {
-                        Server.getServer().getPool().schedule(() ->
-                        {
-                            if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
-                                Server.getServer().getMyFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
-                            } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
-                                Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
-                            } else {
-                                System.out.println(skipped.getAndIncrement());
-                            }
-                        }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                        if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
+                            Server.getServer().getMyFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+                        } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
+                            Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+                        } else {
+                            System.out.println("Skipped " + header.getFileID() + "/" + header.getChunkNo() + " : " + skipped.getAndIncrement());
+                        }
                         break;
 
                     }
