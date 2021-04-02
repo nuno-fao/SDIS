@@ -10,17 +10,17 @@ import static org.junit.Assert.fail;
 public class HeaderConcreteTest {
 
     @Test
-    public void TestHeaderReaderEmptyRequest() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderEmptyRequest() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders(" 1.0  PUTCHUNK  3 123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 8 7 \r\n \r\n\r\n  ");
             fail();
-        } catch (IncorrectHeader ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderPutChunkCorrect() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  PUTCHUNK" +
@@ -38,7 +38,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderPutChunkCorrect2() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderPutChunkCorrect2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  PUTCHUNK" +
@@ -56,7 +56,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderPutChunkCorrect3() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderPutChunkCorrect3() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  GETCHUNK" +
@@ -72,7 +72,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderPutChunkCRLF1() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderPutChunkCRLF1() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -82,13 +82,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "7 ");
             fail();
-        } catch (IncorrectHeader ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkCRLF2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderPutChunkCRLF2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -98,13 +98,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "7 \r\n \r\n");
             fail();
-        } catch (IncorrectHeader ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkCRLF3() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
+    public void TestHeaderReaderPutChunkCRLF3() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -114,13 +114,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "7 \r\n");
             fail();
-        } catch (NewLineError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkMessageTypeError() throws ReplicationDegError, IncorrectHeader, FileIDError, SenderIdError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkMessageTypeError() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -130,14 +130,14 @@ public class HeaderConcreteTest {
                     "8 " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (MessageTypeError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
 
     @Test
-    public void TestHeaderReaderPutChunkSenderIdError1() throws ReplicationDegError, IncorrectHeader, MessageTypeError, FileIDError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError11() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -147,13 +147,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (SenderIdError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkSenderIdError2() throws ReplicationDegError, IncorrectHeader, MessageTypeError, FileIDError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError21() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -163,13 +163,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (SenderIdError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkSenderIdError3() throws ReplicationDegError, IncorrectHeader, MessageTypeError, FileIDError, ChunkNoError, SenderIdError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError31() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  PUTCHUNK" +
@@ -181,7 +181,7 @@ public class HeaderConcreteTest {
 
 
     @Test
-    public void TestHeaderReaderPutChunkFileIDError() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError1() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -191,14 +191,14 @@ public class HeaderConcreteTest {
                     "8 " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (FileIDError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
 
     @Test
-    public void TestHeaderReaderPutChunkChunkNoError1() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError12() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -208,13 +208,13 @@ public class HeaderConcreteTest {
                     "1234567 " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (ChunkNoError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkChunkNoError2() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError22() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -224,13 +224,13 @@ public class HeaderConcreteTest {
                     "f " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (ChunkNoError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkChunkNoError3() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError32() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -240,13 +240,13 @@ public class HeaderConcreteTest {
                     "-1 " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (ChunkNoError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkChunkNoError4() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError42() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  PUTCHUNK" +
@@ -257,7 +257,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderPutChunkChunkNoError5() throws ReplicationDegError, IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError5() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -267,14 +267,14 @@ public class HeaderConcreteTest {
                     "7111111 " +
                     "7 " + "\r\n\r\n");
             fail();
-        } catch (ChunkNoError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
 
     @Test
-    public void TestHeaderReaderPutChunkReplicationDegError1() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError13() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -284,13 +284,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "72 " + "\r\n\r\n");
             fail();
-        } catch (ReplicationDegError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkReplicationDegError2() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -300,13 +300,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "f " + "\r\n\r\n");
             fail();
-        } catch (ReplicationDegError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkReplicationDegError3() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError3() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -316,13 +316,13 @@ public class HeaderConcreteTest {
                     "8 " +
                     "-1 " + "\r\n\r\n");
             fail();
-        } catch (ReplicationDegError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderPutChunkReplicationDegError4() throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderPutChunkParseError4() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  PUTCHUNK" +
@@ -333,20 +333,20 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderPutChunkIncorrectHeader() throws NewLineError {
+    public void TestHeaderReaderPutChunkParseError() throws ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
                     "  PUTCHUNK" +
                     "72 " + "\r\n\r\n");
             fail();
-        } catch (Exception | FileIDError | ChunkNoError | SenderIdError | IncorrectHeader | ReplicationDegError | MessageTypeError ignored) {
+        } catch (Exception | ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderStoredCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderStoredCorrect() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  STORED " +
@@ -361,7 +361,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderStored1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderStored1() throws ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -370,13 +370,13 @@ public class HeaderConcreteTest {
                     "123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 "
                     + "\r\n\r\n  ");
             fail();
-        } catch (ChunkNoError | IncorrectHeader ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderStored2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
+    public void TestHeaderReaderStored2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -386,13 +386,13 @@ public class HeaderConcreteTest {
                     "2 " +
                     "9  " + "\r\n\r\n  ");
             fail();
-        } catch (NewLineError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderMultCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderMultCorrect() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         List<Header> list = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  STORED " +
@@ -422,7 +422,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderGetChunkCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderGetChunkCorrect() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  GETCHUNK " +
@@ -437,7 +437,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderGetChunk1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderGetChunk1() throws ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -446,13 +446,13 @@ public class HeaderConcreteTest {
                     "123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 "
                     + "\r\n\r\n  ");
             fail();
-        } catch (ChunkNoError | IncorrectHeader ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderGetChunk2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
+    public void TestHeaderReaderGetChunk2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -462,13 +462,13 @@ public class HeaderConcreteTest {
                     "2 " +
                     "9  " + "\r\n\r\n  ");
             fail();
-        } catch (NewLineError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderChunkCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderChunkCorrect() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  CHUNK " +
@@ -483,7 +483,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderChunk1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderChunk1() throws ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -492,13 +492,13 @@ public class HeaderConcreteTest {
                     "123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 "
                     + "\r\n\r\n  ");
             fail();
-        } catch (ChunkNoError | IncorrectHeader ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderChunk2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
+    public void TestHeaderReaderChunk2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -508,13 +508,13 @@ public class HeaderConcreteTest {
                     "2 " +
                     "9  " + "\r\n\r\n  ");
             fail();
-        } catch (NewLineError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderDeleteCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderDeleteCorrect() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  DELETE " +
@@ -528,7 +528,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderDelete1() throws SenderIdError, MessageTypeError, ReplicationDegError, NewLineError, IncorrectHeader, ChunkNoError {
+    public void TestHeaderReaderDelete1() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -536,13 +536,13 @@ public class HeaderConcreteTest {
                     "    3 " +
                     "\r\n\r\n  ");
             fail();
-        } catch (FileIDError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderDelete2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
+    public void TestHeaderReaderDelete2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -551,13 +551,13 @@ public class HeaderConcreteTest {
                     "123aeb46ae7de0923432432123aeb46ae7de0923432432Aefbc4579132321123 " +
                     "2 " + "\r\n\r\n  ");
             fail();
-        } catch (NewLineError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderRemovedCorrect() throws ChunkNoError, FileIDError, IncorrectHeader, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderRemovedCorrect() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         Header h = HeaderConcrete.getHeaders("" +
                 " 1.0" +
                 "  REMOVED " +
@@ -572,7 +572,7 @@ public class HeaderConcreteTest {
     }
 
     @Test
-    public void TestHeaderReaderRemoved1() throws FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, NewLineError {
+    public void TestHeaderReaderRemoved1() throws ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -581,13 +581,13 @@ public class HeaderConcreteTest {
                     "123aeb46ae7de0923432432123aeb46ae7dE0923432432Aefbc4579132321123 "
                     + "\r\n\r\n  ");
             fail();
-        } catch (ChunkNoError | IncorrectHeader ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
 
     @Test
-    public void TestHeaderReaderRemoved2() throws ChunkNoError, FileIDError, SenderIdError, MessageTypeError, ReplicationDegError, IncorrectHeader {
+    public void TestHeaderReaderRemoved2() throws ParseError, ParseError, ParseError, ParseError, ParseError, ParseError {
         try {
             HeaderConcrete.getHeaders("" +
                     " 1.0" +
@@ -597,7 +597,7 @@ public class HeaderConcreteTest {
                     "2 " +
                     "9  " + "\r\n\r\n  ");
             fail();
-        } catch (NewLineError ignored) {
+        } catch (ParseError ignored) {
 
         }
     }
