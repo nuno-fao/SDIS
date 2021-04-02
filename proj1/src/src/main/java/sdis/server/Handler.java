@@ -48,7 +48,7 @@ public class Handler implements Runnable {
                     return;
                 switch (header.getMessageType()) {
                     case PUTCHUNK -> {
-                        //System.out.println(System.currentTimeMillis() - this.time);
+                        System.out.println(System.currentTimeMillis() - this.time);
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                         if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
@@ -77,7 +77,7 @@ public class Handler implements Runnable {
                         } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
                             Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
                         } else {
-                            System.out.println("Skipped " + header.getFileID() + "/" + header.getChunkNo() + " : " + skipped.getAndIncrement());
+                            //System.out.println("Skipped " + header.getFileID() + "/" + header.getChunkNo() + " : " + skipped.getAndIncrement());
                         }
                         break;
 
