@@ -216,19 +216,20 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     }
 
     @Override
-    public boolean Backup(String filename, int replicationDegree) {
+    public String Backup(String filename, int replicationDegree) {
         long before = System.currentTimeMillis();
         Path newFilePath = Paths.get(filename);
         if (Files.exists(newFilePath)) {
             File f;
             try {
                 f = new File(filename, replicationDegree);
+                if (this.myFiles.containsKey(File.getFileInfo(filename)))
+                    return "file already backed up";
                 this.myFiles.put(f.getFileId(), f);
             } catch (IOException e) {
                 e.printStackTrace();
-                return false;
+                return "Error opening file";
             }
-
             try {
                 InputStream io = new FileInputStream(filename);
                 int i = 0;
@@ -241,7 +242,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                         byte message[] = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, "".getBytes());
                         DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                         this.backupAux(1, this.pool, packet, f.getFileId(), i, replicationDegree);
-                        return true;
+                        return "Successfully sent";
                     }
                     byte message[];
                     if (size == Server.getServer().chunkSize)
@@ -262,12 +263,13 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 e.printStackTrace();
             }
             System.out.println("Backup Time: " + (System.currentTimeMillis() - before));
-            return true;
+            return "Successfully sent";
         }
-        return false;
+        return "File not found";
     }
 
     private void backupAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
+        System.out.println(fileId + "//" + chunkNo + " sent");
         this.mdb.send(packet);
         pool.schedule(() -> {
             if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree && i < 16) {

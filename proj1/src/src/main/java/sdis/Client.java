@@ -27,8 +27,7 @@ public class Client {
                 } catch (Exception e) {
                     throw new IllegalArgumentException("4th argument is not a number!!!!");
                 }
-                if (!server.Backup(args[2], a))
-                    System.out.println("No such file " + args[2]);
+                System.out.println(server.Backup(args[2], a));
                 break;
             }
             case "RESTORE": {

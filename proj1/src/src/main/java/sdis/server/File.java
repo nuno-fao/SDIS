@@ -82,6 +82,7 @@ public class File {
                     }
                     Files.write(Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo), sb.toString().getBytes());
                 } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
