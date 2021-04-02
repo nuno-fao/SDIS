@@ -15,7 +15,7 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 //https://www.geeksforgeeks.org/sha-256-hash-in-java/
 
-public class OriginalFileTest {
+public class FileTest {
     @Test
     public void TestLoad() throws NoSuchAlgorithmException, IOException {
         String filename = "testfile.txt";
@@ -29,19 +29,19 @@ public class OriginalFileTest {
         Files.createFile(newFilePath);
         Files.write(newFilePath,"qwertyuiopasdfghjklçzxcvbnmqwer".getBytes());
 
-        OriginalFile testOriginalFile = new OriginalFile(filename);
+        File testFile = new File(filename,3);
 
         MessageDigest algo = MessageDigest.getInstance("SHA-256");
-        BigInteger number = new BigInteger(1, algo.digest(("testfile.txt32"+ testOriginalFile.getEditionTime()).getBytes(StandardCharsets.UTF_8)));
+        BigInteger number = new BigInteger(1, algo.digest(("testfile.txt32"+ testFile.getEditionTime()).getBytes(StandardCharsets.UTF_8)));
         StringBuilder hexString = new StringBuilder(number.toString(16));
         while (hexString.length() < 32)
         {
             hexString.insert(0, '0');
         }
 
-        assertEquals(filename, testOriginalFile.getName());
-        assertTrue(testOriginalFile.getEditionTime().length() > 0);
-        assertEquals(hexString.toString(), testOriginalFile.getFileID());
-        assertEquals(32, testOriginalFile.getSize());
+        assertEquals(filename, testFile.getName());
+        assertTrue(testFile.getEditionTime().length() > 0);
+        assertEquals(hexString.toString(), testFile.getFileId());
+        assertEquals(32, testFile.getSize());
     }
 }

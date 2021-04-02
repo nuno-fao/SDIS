@@ -56,7 +56,7 @@ public enum MessageType {
         }
     };
 
-    abstract int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError;
+    public abstract int process(Message h, String []argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError;
     static MessageType parseMessageType(String messageType) throws MessageTypeError {
         switch (messageType) {
             case "PUTCHUNK" -> {
@@ -120,5 +120,12 @@ public enum MessageType {
         } catch (Exception e) {
             throw new ReplicationDegError();
         }
+    }
+
+    public static String createPutchunk(String version, int senderId, String fileId, int chunkNo, int replicationDegree, String body){
+        return version+" PUTCHUNK "+senderId+" "+fileId+" "+chunkNo+" "+replicationDegree+" \r\n\r\n"+body;
+    }
+    public static String createStored(String version, int senderId, String fileId, int chunkNo){
+        return version+" STORED "+senderId+" "+fileId+" "+chunkNo+" \r\n\r\n";
     }
 }

@@ -30,6 +30,7 @@ public class MessageConcrete implements Message {
 
         while (true) {
             try {
+
                 if (argsList.length == 0) {
                     throw new NewLineError();
                 }
@@ -42,8 +43,8 @@ public class MessageConcrete implements Message {
                 int lIndex = localMessage.getMessageType().process(localMessage, argsList);
 
                 //se chegou ao fim
-                if (argsList[lIndex].matches(" *(\r\n){1,2}.*")) {
-                    if (argsList[lIndex].matches(" *\r\n\r\n.*")) {
+                if (argsList[lIndex].matches(" *(\r\n){1,2}[\\s\\S]*")) {
+                    if (argsList[lIndex].matches(" *\r\n\r\n[\\s\\S]*")) {
                         outList.add(localMessage);
 
                         if(argsList.length > lIndex){
@@ -76,6 +77,7 @@ public class MessageConcrete implements Message {
     }
 
     MessageConcrete() {}
+
 
     @Override
     public MessageType getMessageType() {
