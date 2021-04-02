@@ -17,7 +17,7 @@ public class HeaderConcrete implements Header {
         return cp;
     }
 
-    static List<Header> getHeaders(String headerMessage) throws IncorrectHeader, MessageTypeError, SenderIdError, FileIDError, ChunkNoError, ReplicationDegError, NewLineError {
+    static List<Header> getHeaders(String headerMessage) throws ParseError {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
         List<Header> outList = new ArrayList<>();
         Header localHeader;
@@ -26,11 +26,11 @@ public class HeaderConcrete implements Header {
             try {
 
                 if (argsList.length == 0) {
-                    throw new NewLineError();
+                    throw new ParseError();
                 }
                 localHeader = new HeaderConcrete();
                 if (argsList.length < 2) {
-                    throw new IncorrectHeader();
+                    throw new ParseError();
                 }
                 localHeader.setVersion(argsList[0]);
                 localHeader.setMessageType(MessageType.parseMessageType(argsList[1]));
@@ -43,13 +43,13 @@ public class HeaderConcrete implements Header {
                         return outList;
                     }
                 } else {
-                    throw new NewLineError();
+                    throw new ParseError();
                 }
                 //limpa os elementos já processados para ler o proximo header
                 argsList = getSubArray(argsList, lIndex);
                 outList.add(localHeader);
             } catch (ArrayIndexOutOfBoundsException e) {
-                throw new IncorrectHeader();
+                throw new ParseError();
             }
         }
     }
@@ -113,37 +113,5 @@ public class HeaderConcrete implements Header {
     public void setReplicationDeg(Integer replicationDeg) {
         this.replicationDeg = replicationDeg;
     }
-}
-
-class HeaderError extends Throwable {
-
-}
-
-class MessageTypeError extends HeaderError {
-
-}
-
-class SenderIdError extends HeaderError {
-
-}
-
-class FileIDError extends HeaderError {
-
-}
-
-class ChunkNoError extends HeaderError {
-
-}
-
-class ReplicationDegError extends HeaderError {
-
-}
-
-class IncorrectHeader extends HeaderError {
-
-}
-
-class NewLineError extends HeaderError {
-
 }
 

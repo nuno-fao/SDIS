@@ -3,10 +3,11 @@ package sdis.server;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+
 public enum MessageType {
     PUTCHUNK {
         @Override
-        public int process(Header h, String[] argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError {
+        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError, ParseError {
             this.processSenderID(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             this.processChunkNo(h, argsList[4]);
@@ -16,7 +17,7 @@ public enum MessageType {
     },
     STORED {
         @Override
-        public int process(Header h, String[] argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
             this.processSenderID(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             this.processChunkNo(h, argsList[4]);
@@ -25,7 +26,7 @@ public enum MessageType {
     },
     GETCHUNK {
         @Override
-        public int process(Header h, String[] argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
             this.processSenderID(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             this.processChunkNo(h, argsList[4]);
@@ -34,7 +35,7 @@ public enum MessageType {
     },
     DELETE {
         @Override
-        public int process(Header h, String[] argsList) throws SenderIdError, FileIDError {
+        public int process(Header h, String[] argsList) throws ParseError, ParseError {
             this.processSenderID(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             return 4;
@@ -42,7 +43,7 @@ public enum MessageType {
     },
     REMOVED {
         @Override
-        public int process(Header h, String[] argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
             this.processSenderID(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             this.processChunkNo(h, argsList[4]);
@@ -51,7 +52,7 @@ public enum MessageType {
     },
     CHUNK {
         @Override
-        public int process(Header h, String[] argsList) throws SenderIdError, FileIDError, ChunkNoError {
+        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
             this.processSenderID(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             this.processChunkNo(h, argsList[4]);
@@ -59,7 +60,7 @@ public enum MessageType {
         }
     };
 
-    static MessageType parseMessageType(String messageType) throws MessageTypeError {
+    static MessageType parseMessageType(String messageType) throws ParseError {
         switch (messageType) {
             case "PUTCHUNK" -> {
                 return MessageType.PUTCHUNK;
@@ -79,7 +80,7 @@ public enum MessageType {
             case "DELETE" -> {
                 return MessageType.DELETE;
             }
-            default -> throw new MessageTypeError();
+            default -> throw new ParseError();
         }
     }
 
@@ -107,49 +108,50 @@ public enum MessageType {
         return (version + " REMOVED " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
     }
 
-    public abstract int process(Header h, String[] argsList) throws SenderIdError, FileIDError, ChunkNoError, ReplicationDegError;
+    public abstract int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError, ParseError;
 
-    void processSenderID(Header h, String senderID) throws SenderIdError {
+    void processSenderID(Header h, String senderID) throws ParseError {
         try {
             h.setSenderID(Integer.parseInt(senderID));
             if (h.getSenderID() < 0) {
-                throw new SenderIdError();
+                throw new ParseError();
             }
         } catch (Exception e) {
-            throw new SenderIdError();
+            throw new ParseError();
         }
     }
 
-    void processFileID(Header h, String fileID) throws FileIDError {
+    void processFileID(Header h, String fileID) throws ParseError {
         if (fileID.length() != 64)
-            throw new FileIDError();
+            throw new ParseError();
         h.setFileID(fileID.toLowerCase());
     }
 
-    void processChunkNo(Header h, String chunkNo) throws ChunkNoError {
+    void processChunkNo(Header h, String chunkNo) throws ParseError {
         try {
             if (chunkNo.length() > 6)
-                throw new ChunkNoError();
+                throw new ParseError();
             h.setChunkNo(Integer.parseInt(chunkNo));
 
             if (h.getChunkNo() < 0) {
-                throw new ChunkNoError();
+                throw new ParseError();
             }
         } catch (Exception e) {
-            throw new ChunkNoError();
+            throw new ParseError();
         }
     }
 
-    void processReplicationDeg(Header h, String replicationDeg) throws ReplicationDegError {
+    void processReplicationDeg(Header h, String replicationDeg) throws ParseError {
         try {
             if (replicationDeg.length() != 1)
-                throw new ReplicationDegError();
+                throw new ParseError();
             h.setReplicationDeg(Integer.parseInt(replicationDeg));
             if (h.getReplicationDeg() < 0) {
-                throw new ReplicationDegError();
+                throw new ParseError();
             }
         } catch (Exception e) {
-            throw new ReplicationDegError();
+            throw new ParseError();
         }
     }
 }
+

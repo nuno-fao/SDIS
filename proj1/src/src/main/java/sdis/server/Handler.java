@@ -185,8 +185,8 @@ public class Handler implements Runnable {
                     }
                 }
             }
-        } catch (HeaderError headerError) {
-            headerError.printStackTrace();
+        } catch (ParseError parseError) {
+            parseError.printStackTrace();
         }
     }
 
