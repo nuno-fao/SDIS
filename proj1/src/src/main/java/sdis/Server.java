@@ -266,7 +266,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     }
                     DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                     int finalI = i;
-                    this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), (new Random().nextInt(10) + 1) * i, TimeUnit.MILLISECONDS);
+                    this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), (new Random().nextInt(10)) + 50 * i, TimeUnit.MILLISECONDS);
                     i++;
                     if (size < this.chunkSize)
                         break;
@@ -285,8 +285,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private void backupAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
         this.mdb.send(packet);
         pool.schedule(() -> {
-            if (Server.getServer().getMyFiles().get(fileId).getChunks().size() == Server.getServer().getMyFiles().get(fileId).getNumChunks())
-                System.out.println("Time: " + (System.currentTimeMillis() - Server.getServer().getMyFiles().get(fileId).getTime()));
+            /*if (Server.getServer().getMyFiles().get(fileId).getChunks().size() == Server.getServer().getMyFiles().get(fileId).getNumChunks())
+                System.out.println("Time: " + (System.currentTimeMillis() - Server.getServer().getMyFiles().get(fileId).getTime()));*/
             if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree) {
                 if (i < 16) {
                     System.out.println("Against: " + i + " " + this.agains.getAndIncrement() + " " + chunkNo);

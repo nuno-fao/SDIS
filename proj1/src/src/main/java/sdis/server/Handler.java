@@ -84,8 +84,10 @@ public class Handler implements Runnable {
                     return;
                 switch (header.getMessageType()) {
                     case PUTCHUNK -> {
-                        System.out.println(header.getChunkNo());
-                        //System.out.println("Time: "+System.currentTimeMillis() - this.time);
+                        System.out.println(skipped.getAndIncrement());
+                        /*System.out.println(header.getChunkNo());
+                        System.out.println("Time: " + (System.currentTimeMillis() - time));*/
+                        time = System.currentTimeMillis();
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                         if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
@@ -135,6 +137,7 @@ public class Handler implements Runnable {
                         break;
                     }
                     case STORED -> {
+                        System.out.println(skipped.getAndIncrement());
                         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
                             Server.getServer().getMyFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
                         } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
@@ -143,7 +146,6 @@ public class Handler implements Runnable {
                             //System.out.println("Skipped " + header.getFileID() + "/" + header.getChunkNo() + " : " + skipped.getAndIncrement());
                         }
                         break;
-
                     }
                     case GETCHUNK -> {
                         break;
