@@ -1,12 +1,7 @@
 package sdis;
 
 
-import sdis.server.Address;
-import sdis.server.Chunk;
-import sdis.server.File;
-import sdis.server.MessageType;
-import sdis.server.MulticastHolder;
-import sdis.server.RemoteFile;
+import sdis.server.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -45,7 +40,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private int chunkSize = 64000;
     private String serverName;
     private AtomicInteger agains = new AtomicInteger(0);
-    ConcurrentHashMap<String, ConcurrentHashMap<Integer, byte[] >> fileRestoring = new ConcurrentHashMap<>();
+    ConcurrentHashMap<String, RestoreFile> fileRestoring = new ConcurrentHashMap<>();
 
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
@@ -221,7 +216,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         }
     }
 
-    public ConcurrentHashMap<String, ConcurrentHashMap<Integer, byte[]>> getFileRestoring() {
+    public ConcurrentHashMap<String, RestoreFile> getFileRestoring() {
         return fileRestoring;
     }
 
@@ -301,36 +296,32 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     @Override
     public boolean Restore(String filename) {
-
         long before = System.currentTimeMillis();
-        String file = File.getFileInfo(filename);
 
-        if (file == null)
-            return false;
-        if(!myFiles.containsKey(file) && fileRestoring.containsKey(file)){
+        String fileID = null;
+        for (File file : this.myFiles.values()) {
+            if (filename.compareTo(file.getName()) == 0) {
+                fileID=file.getName();
+            }
+        }
+
+        if(fileID==null){
             return false;
         }
 
         ConcurrentHashMap<Integer, byte[] > receivedChunks = new ConcurrentHashMap<>();
 
-        fileRestoring.put(file,receivedChunks);
+        fileRestoring.put(fileID,new RestoreFile(receivedChunks));
 
-        int numberOfChunks = myFiles.get(file).getChunks().values().size();
-
-        //
-
-        for(Chunk chunk:myFiles.get(file).getChunks().values()){
-            byte message[] = MessageType.createGetchunk("1.0", (int) this.peerId, file,chunk.getChunkNo());
+        for(Chunk chunk:myFiles.get(fileID).getChunks().values()){
+            byte[] message = MessageType.createGetchunk("1.0", (int) this.peerId, fileID,chunk.getChunkNo());
             DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
             this.RestoreAux(0,this.pool,packet);
 
         }
 
-        //create file from chunks received
-
-        System.out.println("Restore Time for file " + file + ": " + (System.currentTimeMillis() - before));
+        System.out.println("Restore Time for file " + fileID + ": " + (System.currentTimeMillis() - before));
         return true;
-
 
     }
 

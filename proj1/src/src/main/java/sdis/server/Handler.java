@@ -150,9 +150,21 @@ public class Handler implements Runnable {
                     case GETCHUNK -> {
 
                         if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
-                            RemoteFile f = Server.getServer().getStoredFiles().get(header.getFileID());
-                            Chunk toSend = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
-                            toSend.getChunk(Server.getServer().getPool());
+                            //RemoteFile f = Server.getServer().getStoredFiles().get(header.getFileID());
+                            //Chunk toSend = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
+                            //toSend.getChunk(Server.getServer().getPool());
+
+                            Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                            if (Files.exists(name)) {
+                                try {
+                                    byte[] file_content;
+                                    file_content = Files.readAllBytes(name);
+                                    byte[] message = MessageType.createChunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), header.getChunkNo(), file_content);
+                                    DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                                    Server.getServer().getPool().schedule(() -> Server.getServer().getMdr().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                                } catch (IOException ignored) {
+                                }
+                            }
                         }
                         break;
                     }
@@ -191,8 +203,14 @@ public class Handler implements Runnable {
                     }
                     case CHUNK -> {
                         if(Server.getServer().getFileRestoring().containsKey(header.getFileID())){
-                            if(!Server.getServer().getFileRestoring().get(header.getFileID()).containsKey(header.getChunkNo())){
-                                Server.getServer().getFileRestoring().get(header.getFileID()).put(header.getChunkNo(),body);
+                            if(!Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())){
+                                Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().put(header.getChunkNo(),body);
+                            }
+                            if(Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()==null && body.length<64000){
+                                Server.getServer().getFileRestoring().get(header.getFileID()).setNumberOfChunks(body.length);
+                            }
+                            if(Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()){
+                                //create file from chunks
                             }
                         }
                         break;
