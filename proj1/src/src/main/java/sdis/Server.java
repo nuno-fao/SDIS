@@ -1,12 +1,7 @@
 package sdis;
 
 
-import sdis.server.Address;
-import sdis.server.Chunk;
-import sdis.server.File;
-import sdis.server.MessageType;
-import sdis.server.MulticastHolder;
-import sdis.server.RemoteFile;
+import sdis.server.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -21,10 +16,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,6 +42,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private int chunkSize = 64000;
     private String serverName;
     private AtomicInteger agains = new AtomicInteger(0);
+    private ConcurrentHashMap<String, RestoreFile> fileRestoring = new ConcurrentHashMap<>();
+
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
@@ -224,6 +218,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         }
     }
 
+    public ConcurrentHashMap<String, RestoreFile> getFileRestoring() {
+        return this.fileRestoring;
+    }
+
     @Override
     public String Backup(String filename, int replicationDegree) {
         long before = System.currentTimeMillis();
@@ -236,6 +234,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     return "file already backed up";
                 for (File file : this.myFiles.values()) {
                     if (filename.compareTo(file.getName()) == 0) {
+                        //todo dar delete
                         return "ahahahahahaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
                     }
                 }
@@ -300,8 +299,45 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
 
     @Override
-    public void Restore(String filename) {
+    public boolean Restore(String filename) {
+        long before = System.currentTimeMillis();
 
+        String fileID = null;
+        for (File file : this.myFiles.values()) {
+            if (filename.compareTo(file.getName()) == 0) {
+                fileID = file.getFileId();
+
+            }
+        }
+
+        if (fileID == null) {
+            return false;
+        }
+
+        ConcurrentHashMap<Integer, byte[]> receivedChunks = new ConcurrentHashMap<>();
+
+        this.fileRestoring.put(fileID, new RestoreFile(receivedChunks));
+
+        for (Chunk chunk : this.myFiles.get(fileID).getChunks().values()) {
+            System.out.println("ENTREI AQUI YO");
+            byte[] message = MessageType.createGetchunk("1.0", (int) this.peerId, fileID, chunk.getChunkNo());
+            DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+            this.RestoreAux(1, this.pool, packet, fileID, chunk.getChunkNo());
+
+        }
+
+        System.out.println("Restore Time for file " + fileID + ": " + (System.currentTimeMillis() - before));
+        return true;
+
+    }
+
+    private void RestoreAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileID, int chunkNo) {
+        this.mc.send(packet);
+        pool.schedule(() -> {
+            if (i < 5 && !this.fileRestoring.get(fileID).getChunks().containsKey(chunkNo)) {
+                this.RestoreAux(i + 1, pool, packet, fileID, chunkNo);
+            }
+        }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
 
     @Override
