@@ -265,7 +265,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     }
                     DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
                     int finalI = i;
-                    this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), (new Random().nextInt(10)) + 50 * i, TimeUnit.MILLISECONDS);
+                    this.pool.schedule(() -> this.backupAux(1, this.pool, packet, f.getFileId(), finalI, replicationDegree), (new Random().nextInt(10)) + 5 * i, TimeUnit.MILLISECONDS);
                     i++;
                     if (size < this.chunkSize)
                         break;
