@@ -2,7 +2,10 @@ package sdis.server;
 
 import sdis.Server;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
@@ -131,7 +134,6 @@ public class Handler implements Runnable {
                             }*/
                         }
                         Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
-                        break;
                     }
                     case STORED -> {
                         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
@@ -141,11 +143,27 @@ public class Handler implements Runnable {
                         } else {
                             //System.out.println("Skipped " + header.getFileID() + "/" + header.getChunkNo() + " : " + skipped.getAndIncrement());
                         }
-                        break;
 
                     }
                     case GETCHUNK -> {
-                        break;
+
+                        if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
+                            //RemoteFile f = Server.getServer().getStoredFiles().get(header.getFileID());
+                            //Chunk toSend = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
+                            //toSend.getChunk(Server.getServer().getPool());
+
+                            Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                            if (Files.exists(name)) {
+                                try {
+                                    byte[] file_content;
+                                    file_content = Files.readAllBytes(name);
+                                    byte[] message = MessageType.createChunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), header.getChunkNo(), file_content);
+                                    DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMdr().getAddress(), Server.getServer().getMdr().getPort());
+                                    Server.getServer().getPool().schedule(() -> Server.getServer().getMdr().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                                } catch (IOException ignored) {
+                                }
+                            }
+                        }
                     }
                     case DELETE -> {
                         if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
@@ -153,7 +171,6 @@ public class Handler implements Runnable {
                             Server.getServer().getStoredFiles().remove(header.getFileID());
                             f.delete();
                         }
-                        break;
                     }
                     case REMOVED -> {
                         System.out.println("REMOVED");
@@ -178,10 +195,45 @@ public class Handler implements Runnable {
                                 this.chunkUpdate(chunk);
                             }
                         }
-                        break;
                     }
                     case CHUNK -> {
-                        break;
+                        if(Server.getServer().getFileRestoring().containsKey(header.getFileID())){
+                            if(!Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())){
+                                Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().put(header.getChunkNo(),body);
+                                System.out.println("Recebi 1");
+                            }
+
+                            if(Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()==null && body.length<64000){
+                                System.out.println("Ultimo chunk");
+                                Server.getServer().getFileRestoring().get(header.getFileID()).setNumberOfChunks(header.getChunkNo()+1);
+                            }
+
+                            if(Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()){
+                                Path path = Paths.get("omiguelcheiramal" + Server.getServer().getMyFiles().get(header.getFileID()).getName());
+                                System.out.println("FINISHED RECEIVING");
+                                AsynchronousFileChannel fileChannel = null;
+                                try {
+                                    fileChannel = AsynchronousFileChannel.open(
+                                            path, WRITE, CREATE);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                                int iterator=0;
+                                for(byte[] bytes : Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().values()){
+                                    System.out.println("ESCREVENDO YO");
+                                    ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
+
+                                    buffer.put(bytes);
+                                    buffer.flip();
+
+                                    Future<Integer> operation = fileChannel.write(buffer, iterator* 64000L);
+                                    buffer.clear();
+
+                                    iterator++;
+                                }
+                            }
+                        }
                     }
                 }
             }
