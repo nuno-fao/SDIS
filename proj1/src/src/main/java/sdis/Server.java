@@ -40,7 +40,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private int chunkSize = 64000;
     private String serverName;
     private AtomicInteger agains = new AtomicInteger(0);
-    ConcurrentHashMap<String, RestoreFile> fileRestoring = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, RestoreFile> fileRestoring = new ConcurrentHashMap<>();
 
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
@@ -301,7 +301,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         String fileID = null;
         for (File file : this.myFiles.values()) {
             if (filename.compareTo(file.getName()) == 0) {
-                fileID=file.getName();
+                fileID=file.getFileId();
+
             }
         }
 
@@ -314,9 +315,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         fileRestoring.put(fileID,new RestoreFile(receivedChunks));
 
         for(Chunk chunk:myFiles.get(fileID).getChunks().values()){
+            System.out.println("ENTREI AQUI YO");
             byte[] message = MessageType.createGetchunk("1.0", (int) this.peerId, fileID,chunk.getChunkNo());
             DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-            this.RestoreAux(0,this.pool,packet);
+            this.RestoreAux(1,this.pool,packet,fileID,chunk.getChunkNo());
 
         }
 
@@ -325,11 +327,11 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     }
 
-    public void RestoreAux(int i,ScheduledExecutorService pool, DatagramPacket packet){
+    public void RestoreAux(int i,ScheduledExecutorService pool, DatagramPacket packet,String fileID, int chunkNo){
         this.mc.send(packet);
         pool.schedule(() -> {
-            if (i < 5) {
-                this.RestoreAux(i + 1, pool, packet);
+            if (i < 5 && !fileRestoring.get(fileID).getChunks().containsKey(chunkNo)) {
+                this.RestoreAux(i + 1, pool, packet,fileID,chunkNo);
             }
         }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
