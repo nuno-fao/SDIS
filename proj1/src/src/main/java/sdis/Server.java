@@ -33,9 +33,9 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private long peerId;
     private String accessPoint;
     private String version;
-    private MulticastHolder mc;
-    private MulticastHolder mdb;
-    private MulticastHolder mdr;
+    private MulticastDispatcher mc;
+    private MulticastDispatcher mdb;
+    private MulticastDispatcher mdr;
     private ConcurrentHashMap<String, RemoteFile> storedFiles;
     private ConcurrentHashMap<String, File> myFiles;
     private ScheduledExecutorService pool = Executors.newScheduledThreadPool(10);
@@ -62,9 +62,9 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         this.storedFiles = new ConcurrentHashMap<>();
         this.myFiles = new ConcurrentHashMap<>();
 
-        this.mc = new MulticastHolder(mc.port, mc.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
-        this.mdb = new MulticastHolder(mdb.port, mdb.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
-        this.mdr = new MulticastHolder(mdr.port, mdr.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
+        this.mc = new MulticastDispatcher(mc.port, mc.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
+        this.mdb = new MulticastDispatcher(mdb.port, mdb.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
+        this.mdr = new MulticastDispatcher(mdr.port, mdr.address, this.chunkSize + 500, this.chunkSize, (int) peerId);
         new Thread(this.mc).start();
         new Thread(this.mdb).start();
         new Thread(this.mdr).start();
@@ -177,15 +177,15 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         return this.serverName;
     }
 
-    public MulticastHolder getMc() {
+    public MulticastDispatcher getMc() {
         return this.mc;
     }
 
-    public MulticastHolder getMdb() {
+    public MulticastDispatcher getMdb() {
         return this.mdb;
     }
 
-    public MulticastHolder getMdr() {
+    public MulticastDispatcher getMdr() {
         return this.mdr;
     }
 

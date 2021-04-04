@@ -10,7 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
-public class MulticastHolder implements Runnable {
+public class MulticastDispatcher implements Runnable {
     private long last = System.currentTimeMillis();
     private MulticastSocket socket;
     private int port;
@@ -20,7 +20,7 @@ public class MulticastHolder implements Runnable {
     private int peerId;
     private ExecutorService pool = Executors.newFixedThreadPool(10);
 
-    public MulticastHolder(int port, String host, int bufferSize, int dataSize, int peerId) {
+    public MulticastDispatcher(int port, String host, int bufferSize, int dataSize, int peerId) {
         this.port = port;
         this.host = host;
         try {
