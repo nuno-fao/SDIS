@@ -124,7 +124,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                                 f = new File(dets.get(2), Integer.parseInt(dets.get(1)));
                             }
                             Chunk c = new Chunk(Integer.parseInt(file.getName()), directory.getName(), Integer.parseInt(dets.get(1)));
-                            f.getChunks().put(Integer.parseInt(file.getName()), c);
+                            f.putChunk(Integer.parseInt(file.getName()), c);
                             for (String s : info.get(1).split(";")) {
                                 c.getPeerList().put(Integer.parseInt(s), true);
                             }
@@ -286,7 +286,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     private void send(File f, int replicationDegree, InputStream io, int i) {
         byte a[] = new byte[this.chunkSize];
-        this.myFiles.get(f.getFileId()).getChunks().put(i, new Chunk(i, f.getFileId(), replicationDegree));
+        this.myFiles.get(f.getFileId()).putChunk(i, new Chunk(i, f.getFileId(), replicationDegree));
         int size = 0;
         try {
             size = io.read(a);

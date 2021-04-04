@@ -16,11 +16,13 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
 public class File {
+    private AtomicInteger s = new AtomicInteger(0);
     private String fileId;
     private String name;
     private String editionTime;
@@ -28,6 +30,7 @@ public class File {
     private ConcurrentHashMap<Integer, Chunk> chunks = new ConcurrentHashMap<>();
     private int numChunks = -1;
     private long time;
+    private ConcurrentHashMap<Integer, Boolean> a = new ConcurrentHashMap<>();
 
     public File(String name, int repDegree) throws IOException {
         this.name = name;
@@ -51,7 +54,9 @@ public class File {
         }
         BigInteger number = new BigInteger(1, algo.digest(s.getBytes(StandardCharsets.UTF_8)));
         StringBuilder out = new StringBuilder(number.toString(16));
-        while (out.length() < 64) out.append('0');
+        while (out.length() < 64) {
+            out.append('0');
+        }
         return out.toString();
     }
 
@@ -92,15 +97,26 @@ public class File {
         return this.chunks;
     }
 
+    public void putChunk(int key, Chunk c) {
+        chunks.put(key, c);
+    }
+
     void addStored(int chunkNo, int peerId) {
         if (this.chunks.containsKey(chunkNo)) {
+            if (!a.containsKey(chunkNo)) {
+                s.getAndIncrement();
+                if (numChunks == s.get()) {
+                    System.out.println(System.currentTimeMillis() - time);
+                }
+            }
             Chunk c = this.chunks.get(chunkNo);
             if (!c.getPeerList().containsKey(peerId)) {
                 c.getPeerList().put(peerId, true);
                 StringBuilder sb = new StringBuilder();
                 sb.append((c.getPeerCount() + ";" + c.getRepDegree() + ";" + this.name + "\n"));
-                for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); )
+                for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); ) {
                     sb.append(it.next() + ";");
+                }
 
 
                 Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo);
