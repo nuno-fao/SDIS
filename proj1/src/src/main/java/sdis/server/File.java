@@ -51,9 +51,7 @@ public class File {
         }
         BigInteger number = new BigInteger(1, algo.digest(s.getBytes(StandardCharsets.UTF_8)));
         StringBuilder out = new StringBuilder(number.toString(16));
-        while (out.length() < 64) {
-            out.append('0');
-        }
+        while (out.length() < 64) out.append('0');
         return out.toString();
     }
 
@@ -86,7 +84,7 @@ public class File {
         return this.numChunks;
     }
 
-    public void setNumChunks(int numChunks) {
+    synchronized public void setNumChunks(int numChunks) {
         this.numChunks = numChunks;
     }
 
@@ -101,9 +99,8 @@ public class File {
                 c.getPeerList().put(peerId, true);
                 StringBuilder sb = new StringBuilder();
                 sb.append((c.getPeerCount() + ";" + c.getRepDegree() + ";" + this.name + "\n"));
-                for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); ) {
+                for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); )
                     sb.append(it.next() + ";");
-                }
 
 
                 Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + chunkNo);

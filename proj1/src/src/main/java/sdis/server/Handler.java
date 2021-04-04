@@ -2,10 +2,7 @@ package sdis.server;
 
 import sdis.Server;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
@@ -69,17 +66,11 @@ public class Handler implements Runnable {
             byte body[] = null;
             byte tmp[] = this.packet.getData();
             int i = 0;
-            for (; i < this.packet.getLength() - 3; i++) {
-                if (tmp[i] == 0xd && tmp[i + 1] == 0xa && tmp[i + 2] == 0xd && tmp[i + 3] == 0xa) {
-                    break;
-                }
-            }
+            for (; i < this.packet.getLength() - 3; i++)
+                if (tmp[i] == 0xd && tmp[i + 1] == 0xa && tmp[i + 2] == 0xd && tmp[i + 3] == 0xa) break;
             i += 4;
-            if (head_body.length > 1) {
-                if (this.packet.getLength() > i) {
-                    body = Arrays.copyOfRange(this.packet.getData(), i, this.packet.getLength());
-                }
-            }
+            if (head_body.length > 1) if (this.packet.getLength() > i)
+                body = Arrays.copyOfRange(this.packet.getData(), i, this.packet.getLength());
             List<Header> headers = HeaderConcrete.getHeaders(head_body[0] + "\r\n\r\n");
 
             for (Header header : headers) {
@@ -87,9 +78,6 @@ public class Handler implements Runnable {
                     return;
                 switch (header.getMessageType()) {
                     case PUTCHUNK -> {
-                        System.out.println(skipped.getAndIncrement());
-                        /*System.out.println(header.getChunkNo());
-                        System.out.println("Time: " + (System.currentTimeMillis() - time));*/
                         time = System.currentTimeMillis();
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
@@ -139,12 +127,11 @@ public class Handler implements Runnable {
                         Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
                     }
                     case STORED -> {
-                        System.out.println(skipped.getAndIncrement());
-                        if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
+                        if (Server.getServer().getMyFiles().containsKey(header.getFileID()))
                             Server.getServer().getMyFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
-                        } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
+                        else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo()))
                             Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
-                        } else {
+                        else {
                             //System.out.println("Skipped " + header.getFileID() + "/" + header.getChunkNo() + " : " + skipped.getAndIncrement());
                         }
                     }
@@ -156,15 +143,13 @@ public class Handler implements Runnable {
                             //toSend.getChunk(Server.getServer().getPool());
 
                             Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
-                            if (Files.exists(name)) {
-                                try {
-                                    byte[] file_content;
-                                    file_content = Files.readAllBytes(name);
-                                    byte[] message = MessageType.createChunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), header.getChunkNo(), file_content);
-                                    DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMdr().getAddress(), Server.getServer().getMdr().getPort());
-                                    Server.getServer().getPool().schedule(() -> Server.getServer().getMdr().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
-                                } catch (IOException ignored) {
-                                }
+                            if (Files.exists(name)) try {
+                                byte[] file_content;
+                                file_content = Files.readAllBytes(name);
+                                byte[] message = MessageType.createChunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), header.getChunkNo(), file_content);
+                                DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMdr().getAddress(), Server.getServer().getMdr().getPort());
+                                Server.getServer().getPool().schedule(() -> Server.getServer().getMdr().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                            } catch (IOException ignored) {
                             }
                         }
                     }
@@ -187,16 +172,14 @@ public class Handler implements Runnable {
                             chunk = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
                         }
-                        if (chunk != null) {
-                            if (chunk.getPeerList() != null) {
-                                if (chunk.getPeerList().containsKey(header.getSenderID())) {
-                                    chunk.getPeerList().remove(header.getSenderID());
-                                    this.chunkUpdate(chunk);
-                                }
-                            } else {
-                                chunk.subtractRealDegree();
+                        if (chunk != null) if (chunk.getPeerList() != null) {
+                            if (chunk.getPeerList().containsKey(header.getSenderID())) {
+                                chunk.getPeerList().remove(header.getSenderID());
                                 this.chunkUpdate(chunk);
                             }
+                        } else {
+                            chunk.subtractRealDegree();
+                            this.chunkUpdate(chunk);
                         }
                     }
                     case CHUNK -> {

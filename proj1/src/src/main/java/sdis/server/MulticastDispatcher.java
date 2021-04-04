@@ -1,14 +1,11 @@
 package sdis.server;
 
-import sdis.Server;
-
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 
 public class MulticastDispatcher implements Runnable {
     private long last = System.currentTimeMillis();
@@ -37,7 +34,7 @@ public class MulticastDispatcher implements Runnable {
     }
 
 
-    public void send(DatagramPacket packet) {
+    public synchronized void send(DatagramPacket packet) {
         try {
             this.socket.send(packet);
         } catch (IOException e) {
@@ -57,14 +54,12 @@ public class MulticastDispatcher implements Runnable {
         System.out.println(this.host + " Running");
         byte[] buffer = new byte[this.bufferSize];
         DatagramPacket packet = new DatagramPacket(buffer, this.bufferSize);
-        while (true) {
-            try {
-                this.socket.receive(packet);
+        while (true) try {
+            this.socket.receive(packet);
 
-                this.pool.execute(new Handler(packet, this.peerId));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            this.pool.execute(new Handler(packet, this.peerId));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

@@ -71,21 +71,19 @@ public class Chunk {
         return this.repDegree;
     }
 
-    void backup(ScheduledExecutorService pool) {
+    synchronized void backup(ScheduledExecutorService pool) {
         Path name = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + this.chunkNo);
-        if (Files.exists(name)) {
-            try {
-                byte file_content[];
-                file_content = Files.readAllBytes(name);
-                byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
-                DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-                this.backup(pool, 1, packet);
-            } catch (IOException ignored) {
-            }
+        if (Files.exists(name)) try {
+            byte file_content[];
+            file_content = Files.readAllBytes(name);
+            byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
+            DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+            this.backup(pool, 1, packet);
+        } catch (IOException ignored) {
         }
     }
 
-    private void backup(ScheduledExecutorService pool, int i, DatagramPacket packet) {
+    synchronized private void backup(ScheduledExecutorService pool, int i, DatagramPacket packet) {
         Server.getServer().getMdb().send(packet);
         pool.schedule(() -> {
             if (Server.getServer().getMyFiles().get(this.fileId).getReplicationDegree(this.chunkNo) < this.repDegree && i < 16)
@@ -93,7 +91,7 @@ public class Chunk {
         }, i, TimeUnit.SECONDS);
     }
 
-    void update(String folder) {
+    synchronized void update(String folder) {
         Path path = Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo);
         AsynchronousFileChannel fileChannel = null;
         try {
