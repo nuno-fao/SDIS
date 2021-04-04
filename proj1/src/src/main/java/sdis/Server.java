@@ -247,7 +247,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 //todo dar delete
                 for (File file : this.myFiles.values()) {
                     if (filename.compareTo(file.getName()) == 0) {
-                        return "ahahahahahaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+                        deleteFile(file.getFileId());
                     }
                 }
                 this.myFiles.put(f.getFileId(), f);
@@ -363,10 +363,18 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         if (file == null) {
             return false;
         }
-        byte message[] = MessageType.createDelete("1.0", (int) this.peerId, file);
+        if (!deleteFile(file)) {
+            return false;
+        }
+        System.out.println("Delete Time for file " + file + ": " + (System.currentTimeMillis() - before));
+        return true;
+    }
+
+    private boolean deleteFile(String fileId) {
+        byte message[] = MessageType.createDelete("1.0", (int) this.peerId, fileId);
         DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
         try {
-            Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + file))
+            Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + fileId))
                     .sorted(Comparator.reverseOrder())
                     .map(Path::toFile)
                     .forEach(java.io.File::delete);
@@ -374,8 +382,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             return false;
         }
         this.deleteAux(0, this.pool, packet);
-        this.myFiles.remove(file);
-        System.out.println("Delete Time for file " + file + ": " + (System.currentTimeMillis() - before));
+        this.myFiles.remove(fileId);
         return true;
     }
 
