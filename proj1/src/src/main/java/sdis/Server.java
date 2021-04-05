@@ -310,7 +310,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
         this.backupAux(1, this.pool, packet, f.getFileId(), i, replicationDegree);
         if (size == this.chunkSize) {
-            this.pool.schedule(() -> send(f, replicationDegree, io, i + 1), (new Random().nextInt(7)) + 10, TimeUnit.MILLISECONDS);
+            this.pool.schedule(() -> send(f, replicationDegree, io, i + 1), (new Random().nextInt(20)) + 2, TimeUnit.MILLISECONDS);
         }
     }
 

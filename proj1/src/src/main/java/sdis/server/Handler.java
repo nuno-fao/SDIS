@@ -204,7 +204,16 @@ public class Handler implements Runnable {
                             }
 
                             if (Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null && Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()) {
-                                Path path = Paths.get("b_" + Server.getServer().getMyFiles().get(header.getFileID()).getName());
+
+                                String folder = Server.getServer().getServerName() + "/" + "restored";
+                                if (!Files.exists(Path.of(folder))) {
+                                    try {
+                                        Files.createDirectories(Path.of(folder));
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                                Path path = Paths.get(folder + "/" + Server.getServer().getMyFiles().get(header.getFileID()).getName());
                                 AsynchronousFileChannel fileChannel = null;
                                 try {
                                     fileChannel = AsynchronousFileChannel.open(
@@ -219,7 +228,7 @@ public class Handler implements Runnable {
                                     buffer.put(Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().get(iterator));
                                     buffer.flip();
 
-                                    Future<Integer> operation = fileChannel.write(buffer, iterator * 64000L);
+                                    fileChannel.write(buffer, iterator * 64000L);
                                     buffer.clear();
                                 }
                             }
