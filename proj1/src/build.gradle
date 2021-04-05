@@ -29,10 +29,16 @@ jar {
     }
 }
 
+task clientR1(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint1", "RESTORE", "testfile1b.png"
+}
+
 task clientB1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint1", "BACKUP", "testfile1.txt", "1"
+    args "accesspoint1", "BACKUP", "testfile1.txt", "2"
 }
 
 task clientB2(type: JavaExec) {
@@ -40,6 +46,13 @@ task clientB2(type: JavaExec) {
     main = "sdis.Client"
     args "accesspoint2", "BACKUP", "testfile1d.txt", "2"
 }
+
+task clientB3(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint1", "BACKUP", "testfile1b.png", "2"
+}
+
 
 task clientS1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
@@ -59,6 +72,12 @@ task clientD2(type: JavaExec) {
     args "accesspoint2", "DELETE", "testfile1d.txt"
 }
 
+task clientD3(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint1", "DELETE", "testfile1b.png"
+}
+
 task server1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
@@ -70,8 +89,11 @@ task server2(type: JavaExec) {
     main = "sdis.Server"
     args "1.1.0", "2", "accesspoint2", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
+
 task server3(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
     args "1.1.0", "3", "accesspoint3", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
+
+
