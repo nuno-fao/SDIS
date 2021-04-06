@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 
@@ -44,8 +45,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private String serverName;
     private AtomicInteger agains = new AtomicInteger(0);
     private ConcurrentHashMap<String, RestoreFile> fileRestoring = new ConcurrentHashMap<>();
-    private AtomicInteger maxSize = new AtomicInteger(-1);
-    private AtomicInteger currentSize = new AtomicInteger(0);
+    private AtomicLong maxSize = new AtomicLong(-1);
+    private AtomicLong currentSize = new AtomicLong(0);
 
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
@@ -97,11 +98,11 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         createServer(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
     }
 
-    public AtomicInteger getMaxSize() {
+    public AtomicLong getMaxSize() {
         return maxSize;
     }
 
-    public AtomicInteger getCurrentSize() {
+    public AtomicLong getCurrentSize() {
         return currentSize;
     }
 
@@ -410,8 +411,12 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     }
 
     @Override
-    public void Reclaim(long spaceLeft) {
+    public void Reclaim(long maxSpace) {
+        if (currentSize.get() < maxSpace) {
+            maxSize.set(maxSpace);
+        } else {
 
+        }
     }
 
     @Override
