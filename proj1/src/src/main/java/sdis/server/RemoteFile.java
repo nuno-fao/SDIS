@@ -23,14 +23,21 @@ public class RemoteFile {
     }
 
     void addStored(int chunkNo, int peerId) {
-        if (this.chunks.containsKey(chunkNo))
+        if (this.chunks.containsKey(chunkNo)) {
             if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
                 this.chunks.get(chunkNo).getPeerList().put(peerId, true);
                 this.chunks.get(chunkNo).update("rdata");
             }
+        }
     }
 
     void delete() {
+        int sum = 0;
+        for (Chunk c : chunks.values()) {
+            sum += c.getSize();
+        }
+        Server.getServer().getCurrentSize().addAndGet(-sum);
+
         try {
             Files.walk(Path.of(Server.getServer().getServerName() + "/.rdata/" + this.fileId))
                     .sorted(Comparator.reverseOrder())

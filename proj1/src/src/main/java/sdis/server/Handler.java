@@ -88,48 +88,37 @@ public class Handler implements Runnable {
                         time = System.currentTimeMillis();
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-                        if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
-                            try {
-                                Files.createDirectories(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID()));
-                            } catch (IOException e) {
-                                System.exit(1);
+                        if (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get()) {
+                            if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
+                                try {
+                                    Files.createDirectories(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID()));
+                                } catch (IOException e) {
+                                    System.exit(1);
+                                }
+                                Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
                             }
-                            Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
-                        }
-                        if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
-                            Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg()));
-                            Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+                            if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
+                                Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length));
+                                Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
 
-                            Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
-                            AsynchronousFileChannel fileChannel = null;
-                            try {
-                                fileChannel = AsynchronousFileChannel.open(
-                                        path, WRITE, CREATE);
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                                Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                                AsynchronousFileChannel fileChannel = null;
+                                try {
+                                    fileChannel = AsynchronousFileChannel.open(
+                                            path, WRITE, CREATE);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                                ByteBuffer buffer = ByteBuffer.allocate(body.length);
+
+                                buffer.put(body);
+                                buffer.flip();
+
+                                fileChannel.write(buffer, 0);
+                                buffer.clear();
+                                Server.getServer().getCurrentSize().addAndGet(body.length);
                             }
-
-                            ByteBuffer buffer = ByteBuffer.allocate(body.length);
-
-                            buffer.put(body);
-                            buffer.flip();
-
-                            Future<Integer> operation = fileChannel.write(buffer, 0);
-                            buffer.clear();
-
-                            /*//run other code as operation continues in background
-                            try {
-                                operation.get();
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            } catch (ExecutionException e) {
-                                e.printStackTrace();
-                            }*/
-                            /*try {
-                                Files.write(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo()), body);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }*/
                         }
                         Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
                     }
@@ -145,9 +134,6 @@ public class Handler implements Runnable {
                     case GETCHUNK -> {
 
                         if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
-                            //RemoteFile f = Server.getServer().getStoredFiles().get(header.getFileID());
-                            //Chunk toSend = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
-                            //toSend.getChunk(Server.getServer().getPool());
 
                             Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
                             if (Files.exists(name)) {

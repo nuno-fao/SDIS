@@ -25,6 +25,7 @@ public class Chunk {
     private String fileId;
     private ConcurrentHashMap<Integer, Boolean> peerCount = null;
     private AtomicBoolean shallSend = new AtomicBoolean(true);
+    private int size = 0;
 
     public Chunk(int chunkNo, String fileId, int repDegree) {
 
@@ -34,12 +35,24 @@ public class Chunk {
         this.peerCount = new ConcurrentHashMap<>();
     }
 
+    Chunk(int chunkNo, String fileId, int repDegree, int size) {
+        this.chunkNo = chunkNo;
+        this.fileId = fileId;
+        this.repDegree = repDegree;
+        this.peerCount = new ConcurrentHashMap<>();
+        this.size = size;
+    }
 
-    public Chunk(int chunkNo, String fileId, int repDegree, int realDegree) {
+    public Chunk(int chunkNo, String fileId, int repDegree, int realDegree, int size) {
         this.chunkNo = chunkNo;
         this.fileId = fileId;
         this.repDegree = repDegree;
         this.realDegree = realDegree;
+        this.size = size;
+    }
+
+    public int getSize() {
+        return size;
     }
 
     public String getFileId() {
@@ -55,14 +68,16 @@ public class Chunk {
     }
 
     public ConcurrentHashMap<Integer, Boolean> getPeerList() {
-        if (this.peerCount == null)
+        if (this.peerCount == null) {
             this.peerCount = new ConcurrentHashMap<>();
+        }
         return this.peerCount;
     }
 
     public int getPeerCount() {
-        if (this.peerCount != null)
+        if (this.peerCount != null) {
             return this.peerCount.size();
+        }
         return this.realDegree;
     }
 
@@ -73,21 +88,24 @@ public class Chunk {
 
     synchronized void backup(ScheduledExecutorService pool) {
         Path name = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + this.chunkNo);
-        if (Files.exists(name)) try {
-            byte file_content[];
-            file_content = Files.readAllBytes(name);
-            byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
-            DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-            this.backup(pool, 1, packet);
-        } catch (IOException ignored) {
+        if (Files.exists(name)) {
+            try {
+                byte file_content[];
+                file_content = Files.readAllBytes(name);
+                byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
+                DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                this.backup(pool, 1, packet);
+            } catch (IOException ignored) {
+            }
         }
     }
 
     synchronized private void backup(ScheduledExecutorService pool, int i, DatagramPacket packet) {
         Server.getServer().getMdb().send(packet);
         pool.schedule(() -> {
-            if (Server.getServer().getMyFiles().get(this.fileId).getReplicationDegree(this.chunkNo) < this.repDegree && i < 16)
+            if (Server.getServer().getMyFiles().get(this.fileId).getReplicationDegree(this.chunkNo) < this.repDegree && i < 16) {
                 this.backup(pool, i * 2, packet);
+            }
         }, i, TimeUnit.SECONDS);
     }
 
@@ -101,7 +119,7 @@ public class Chunk {
             e.printStackTrace();
         }
 
-        byte out[] = (this.getPeerCount() + ";" + this.repDegree).getBytes();
+        byte out[] = (this.getPeerCount() + ";" + this.repDegree + ";" + size).getBytes();
         ByteBuffer buffer = ByteBuffer.allocate(out.length);
 
         buffer.put(out);

@@ -44,6 +44,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private String serverName;
     private AtomicInteger agains = new AtomicInteger(0);
     private ConcurrentHashMap<String, RestoreFile> fileRestoring = new ConcurrentHashMap<>();
+    private AtomicInteger maxSize = new AtomicInteger(-1);
+    private AtomicInteger currentSize = new AtomicInteger(0);
 
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
@@ -83,7 +85,6 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         return server;
     }
 
-
     public static void main(String[] args) throws Exception {
         if (args.length < 9) {
             throw new Exception("Some args are missing!");
@@ -94,6 +95,14 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             throw new Exception("invalid parameter " + args[1] + ", should be a valid number");
         }
         createServer(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
+    }
+
+    public AtomicInteger getMaxSize() {
+        return maxSize;
+    }
+
+    public AtomicInteger getCurrentSize() {
+        return currentSize;
     }
 
     public long getPeerId() {
@@ -151,13 +160,13 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                         List<String> info = Files.readAllLines(file.toPath());
                         if (info.size() == 1) {
                             List<String> dets = Arrays.asList((new String(info.get(0).getBytes())).split(";"));
-                            if (dets.size() != 2) {
+                            if (dets.size() != 3) {
                                 continue;
                             }
                             if (f == null) {
                                 f = new RemoteFile(directory.getName());
                             }
-                            f.getChunks().put(Integer.parseInt(file.getName()), new Chunk(Integer.parseInt(file.getName()), directory.getName(), Integer.parseInt(dets.get(1)), Integer.parseInt(dets.get(0))));
+                            f.getChunks().put(Integer.parseInt(file.getName()), new Chunk(Integer.parseInt(file.getName()), directory.getName(), Integer.parseInt(dets.get(1)), Integer.parseInt(dets.get(0)), Integer.parseInt(dets.get(2))));
                         } else {
                             continue;
                         }
@@ -167,6 +176,11 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        for (RemoteFile rf : storedFiles.values()) {
+            for (Chunk c : rf.getChunks().values()) {
+                currentSize.addAndGet(c.getSize());
+            }
         }
     }
 
@@ -310,7 +324,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
         this.backupAux(1, this.pool, packet, f.getFileId(), i, replicationDegree);
         if (size == this.chunkSize) {
-            this.pool.schedule(() -> send(f, replicationDegree, io, i + 1), (new Random().nextInt(20)) + 2, TimeUnit.MILLISECONDS);
+            this.pool.schedule(() -> send(f, replicationDegree, io, i + 1), (new Random().nextInt(20)) + 10, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -397,17 +411,15 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     @Override
     public void Reclaim(long spaceLeft) {
-        /*for (Chunk chunk : this.chunks.values()) {
-            String m = MessageType.createRemoved("1.0", (int) Server.getServer().getPeerId(), chunk.getFileId(), chunk.getChunkNo());
-            DatagramPacket packet = new DatagramPacket(m.getBytes(), m.length(), Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-            Server.getServer().getPool().execute(() -> Server.getServer().getMc().send(packet));
-        }*/
+
     }
 
     @Override
     public String State() throws RemoteException {
         String out = "";
         out += ("Backed Up Files Owned by the peer\n");
+        out += "Max Size: " + Server.getServer().getMaxSize().get() + "\n";
+        out += "Current Size: " + Server.getServer().getCurrentSize().get() + "\n";
         for (File f : this.myFiles.values()) {
             out += "    Name:               " + f.getName() + "\n";
             out += "    FileID:             " + f.getFileId() + "\n";
