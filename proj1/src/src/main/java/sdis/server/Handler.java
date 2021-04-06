@@ -101,6 +101,8 @@ public class Handler implements Runnable {
                     case PUTCHUNK -> {
                         time = System.currentTimeMillis();
 
+                        if(Server.getServer().getMyFiles().containsKey(header.getFileID())) return;
+
                         checkForStandby(header.getFileID(),header.getChunkNo());
 
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
@@ -210,6 +212,8 @@ public class Handler implements Runnable {
                                             standbyBackupList.add(standbyBackup);
 
                                             Thread.sleep(new Random().nextInt(401));
+
+                                            standbyBackupList.remove(standbyBackup);
 
                                             if(standbyBackup.isCanceled()) return;
 

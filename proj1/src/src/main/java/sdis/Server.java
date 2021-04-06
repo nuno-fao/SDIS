@@ -429,6 +429,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     return (o1.getRealDegree() - o1.getRepDegree()) - (o2.getRealDegree() - o2.getRepDegree());
                 }
             });
+
             for(Chunk chunk:cleanable){
                 if(storedFiles.get(chunk.getFileId()).deleteChunk(chunk.getChunkNo())){
 
