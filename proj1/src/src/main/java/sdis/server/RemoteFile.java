@@ -28,6 +28,7 @@ public class RemoteFile {
                 this.chunks.get(chunkNo).getPeerList().put(peerId, true);
                 this.chunks.get(chunkNo).update("rdata");
             }
+
         }
     }
 
@@ -53,6 +54,25 @@ public class RemoteFile {
             e.printStackTrace();
         }
     }
+
+    public boolean deleteChunk(int chunkId){
+        if(chunks.containsKey(chunkId)){
+            chunks.remove(chunkId);
+            Path rInfo = Path.of(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + chunkId);
+            Path chunkData = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + chunkId);
+            if(Files.exists(rInfo) && Files.exists(chunkData)){
+                try{
+                    Files.delete(rInfo);
+                    Files.delete(chunkData);
+                    return true;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return false;
+    }
+
 
     public ConcurrentHashMap<Integer, Chunk> getChunks() {
         return this.chunks;

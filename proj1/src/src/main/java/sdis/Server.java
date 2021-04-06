@@ -16,10 +16,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -259,7 +256,6 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 if (this.myFiles.containsKey(File.getFileInfo(filename))) {
                     return "file already backed up";
                 }
-                //todo dar delete
                 for (File file : this.myFiles.values()) {
                     if (filename.compareTo(file.getName()) == 0) {
                         deleteFile(file.getFileId());
@@ -412,11 +408,46 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     @Override
     public void Reclaim(long maxSpace) {
-        if (currentSize.get() < maxSpace) {
-            maxSize.set(maxSpace);
-        } else {
+        long before = System.currentTimeMillis();
 
+        maxSize.set(maxSpace);
+
+        //System.out.println("MAX SIZE "+maxSize.get());
+        //System.out.println("CURRENT SIZE "+currentSize.get());
+
+        if (currentSize.get() > maxSpace) {
+
+            //System.out.println("ENTREI PARA LIMPAR");
+
+            List<Chunk> cleanable = new ArrayList<>();
+            for(RemoteFile file:this.storedFiles.values()){
+                cleanable.addAll(file.getChunks().values());
+            }
+            cleanable.sort(new Comparator<>() {
+                @Override
+                public int compare(Chunk o1, Chunk o2) {
+                    return (o1.getRealDegree() - o1.getRepDegree()) - (o2.getRealDegree() - o2.getRepDegree());
+                }
+            });
+            for(Chunk chunk:cleanable){
+                if(storedFiles.get(chunk.getFileId()).deleteChunk(chunk.getChunkNo())){
+
+                    //System.out.println("REMOVING CHUNK "+chunk.getChunkNo()+" "+chunk.getSize());
+                    currentSize.addAndGet(-chunk.getSize());
+
+                    byte message[] = MessageType.createRemoved("1.0", (int) this.peerId, chunk.getFileId(),chunk.getChunkNo());
+                    DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+                    this.mc.send(packet);
+                    //System.out.println("CURRENT SIZE BEFORE BREAK");
+                    if(currentSize.get()<=maxSize.get()){
+                        break;
+                    }
+                }
+
+            }
         }
+
+        System.out.println("Reclaim Time : " + (System.currentTimeMillis() - before));
     }
 
     @Override

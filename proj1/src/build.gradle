@@ -35,10 +35,16 @@ task clientR1(type: JavaExec) {
     args "accesspoint1", "RESTORE", "testfile1b.png"
 }
 
+task clientRCL2(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint2", "RECLAIM", "64000"
+}
+
 task clientB1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint1", "BACKUP", "testfile1.txt", "2"
+    args "accesspoint1", "BACKUP", "testfile1.txt", "1"
 }
 
 task clientB2(type: JavaExec) {
@@ -53,11 +59,23 @@ task clientB3(type: JavaExec) {
     args "accesspoint1", "BACKUP", "testfile1b.png", "2"
 }
 
+task clientB4(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint1", "BACKUP", "testfile1c.txt", "1"
+}
+
 
 task clientS1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
     args "accesspoint1", "STATE"
+}
+
+task clientS2(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint2", "STATE"
 }
 
 task clientD1(type: JavaExec) {
@@ -76,6 +94,12 @@ task clientD3(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
     args "accesspoint1", "DELETE", "testfile1b.png"
+}
+
+task clientD4(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint1", "DELETE", "testfile1c.txt"
 }
 
 task server1(type: JavaExec) {

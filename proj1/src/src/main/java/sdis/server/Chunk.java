@@ -27,6 +27,10 @@ public class Chunk {
     private AtomicBoolean shallSend = new AtomicBoolean(true);
     private int size = 0;
 
+    public int getRealDegree() {
+        return realDegree;
+    }
+
     public Chunk(int chunkNo, String fileId, int repDegree) {
 
         this.chunkNo = chunkNo;

@@ -3,6 +3,7 @@ package sdis.server;
 import sdis.Server;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
@@ -10,6 +11,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.security.KeyPair;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -26,10 +29,21 @@ public class Handler implements Runnable {
     static private long time = System.currentTimeMillis();
     private DatagramPacket packet;
     private int peerId;
+    private List<StandbyBackup> standbyBackupList;
 
     Handler(DatagramPacket packet, int peerId) {
         this.packet = packet;
         this.peerId = peerId;
+        standbyBackupList = new ArrayList<>();
+    }
+
+    private void checkForStandby(String filedId,int chunkNo){
+        for(StandbyBackup standbyBackup:standbyBackupList){
+            if(standbyBackup.isEqual(filedId,chunkNo)){
+                standbyBackup.cancel();
+                return;
+            }
+        }
     }
 
     private static String readContent(Path file) {
@@ -86,6 +100,9 @@ public class Handler implements Runnable {
                 switch (header.getMessageType()) {
                     case PUTCHUNK -> {
                         time = System.currentTimeMillis();
+
+                        checkForStandby(header.getFileID(),header.getChunkNo());
+
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                         if (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get()) {
@@ -98,8 +115,12 @@ public class Handler implements Runnable {
                                 Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
                             }
                             if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
-                                Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length));
-                                Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+                                Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
+                                c.getPeerList().put(peerId, true);
+                                c.update("rdata");
+                                c.getPeerList().put((int) Server.getServer().getPeerId(),true);
+
+                                Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), c);
 
                                 Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
                                 AsynchronousFileChannel fileChannel = null;
@@ -158,12 +179,14 @@ public class Handler implements Runnable {
                     case REMOVED -> {
                         System.out.println("REMOVED");
                         Chunk chunk = null;
+                        boolean isLocalCopy = false;
                         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
                             System.out.println("My Files");
                             chunk = Server.getServer().getMyFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
                         } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
                             System.out.println("Remote Files");
+                            isLocalCopy = true;
                             chunk = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
                         }
@@ -176,6 +199,35 @@ public class Handler implements Runnable {
                             } else {
                                 chunk.subtractRealDegree();
                                 this.chunkUpdate(chunk);
+                            }
+
+                            if(chunk.getRealDegree()<chunk.getRepDegree()){
+                                if(isLocalCopy){
+                                    Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                                    if (Files.exists(name)) {
+                                        try {
+                                            StandbyBackup standbyBackup = new StandbyBackup(header.getFileID(),header.getChunkNo(),false);
+                                            standbyBackupList.add(standbyBackup);
+
+                                            Thread.sleep(new Random().nextInt(401));
+
+                                            if(standbyBackup.isCanceled()) return;
+
+                                            byte[] file_content;
+                                            file_content = Files.readAllBytes(name);
+
+                                            byte[] message = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), (int) header.getChunkNo(),chunk.getRepDegree() ,file_content);
+                                            DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMdb().getAddress(), Server.getServer().getMdb().getPort());
+                                            Server.getServer().getMdb().send(packet);
+                                        }
+                                        catch (IOException | InterruptedException e){
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                }
+                                else{   //caso seja o peer original :/
+
+                                }
                             }
                         }
                     }
