@@ -27,6 +27,10 @@ public class Chunk {
     private AtomicBoolean shallSend = new AtomicBoolean(true);
     private int size = 0;
 
+    public int getRealDegree() {
+        return realDegree;
+    }
+
     public Chunk(int chunkNo, String fileId, int repDegree) {
 
         this.chunkNo = chunkNo;
@@ -86,28 +90,6 @@ public class Chunk {
         return this.repDegree;
     }
 
-    synchronized void backup(ScheduledExecutorService pool) {
-        Path name = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + this.chunkNo);
-        if (Files.exists(name)) {
-            try {
-                byte file_content[];
-                file_content = Files.readAllBytes(name);
-                byte body[] = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), this.fileId, this.chunkNo, this.repDegree, file_content);
-                DatagramPacket packet = new DatagramPacket(body, body.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-                this.backup(pool, 1, packet);
-            } catch (IOException ignored) {
-            }
-        }
-    }
-
-    synchronized private void backup(ScheduledExecutorService pool, int i, DatagramPacket packet) {
-        Server.getServer().getMdb().send(packet);
-        pool.schedule(() -> {
-            if (Server.getServer().getMyFiles().get(this.fileId).getReplicationDegree(this.chunkNo) < this.repDegree && i < 16) {
-                this.backup(pool, i * 2, packet);
-            }
-        }, i, TimeUnit.SECONDS);
-    }
 
     synchronized void update(String folder) {
         Path path = Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo);
@@ -127,9 +109,5 @@ public class Chunk {
 
         Future<Integer> operation = fileChannel.write(buffer, 0);
         buffer.clear();
-    }
-
-    AtomicBoolean getShallSend() {
-        return this.shallSend;
     }
 }

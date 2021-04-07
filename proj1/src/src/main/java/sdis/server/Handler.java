@@ -3,6 +3,7 @@ package sdis.server;
 import sdis.Server;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
@@ -10,12 +11,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.security.KeyPair;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -26,10 +27,12 @@ public class Handler implements Runnable {
     static private long time = System.currentTimeMillis();
     private DatagramPacket packet;
     private int peerId;
+    private ConcurrentHashMap<String,String> standbyBackupList;
 
     Handler(DatagramPacket packet, int peerId) {
         this.packet = packet;
         this.peerId = peerId;
+        standbyBackupList = new ConcurrentHashMap<>();
     }
 
     private static String readContent(Path file) {
@@ -86,6 +89,11 @@ public class Handler implements Runnable {
                 switch (header.getMessageType()) {
                     case PUTCHUNK -> {
                         time = System.currentTimeMillis();
+
+                        if(Server.getServer().getMyFiles().containsKey(header.getFileID())) return;
+
+                        standbyBackupList.remove(header.getFileID()+header.getChunkNo());
+
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                         if (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get()) {
@@ -98,8 +106,12 @@ public class Handler implements Runnable {
                                 Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
                             }
                             if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
-                                Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length));
-                                Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
+                                Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
+                                c.getPeerList().put(peerId, true);
+                                c.update("rdata");
+                                c.getPeerList().put((int) Server.getServer().getPeerId(),true);
+
+                                Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), c);
 
                                 Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
                                 AsynchronousFileChannel fileChannel = null;
@@ -119,8 +131,12 @@ public class Handler implements Runnable {
                                 buffer.clear();
                                 Server.getServer().getCurrentSize().addAndGet(body.length);
                             }
+
                         }
-                        Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                        if(Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())){
+                            Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                        }
+
                     }
                     case STORED -> {
                         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
@@ -156,26 +172,56 @@ public class Handler implements Runnable {
                         }
                     }
                     case REMOVED -> {
-                        System.out.println("REMOVED");
+                        System.out.println("REMOVED CHUNK " + header.getChunkNo());
                         Chunk chunk = null;
+                        boolean isLocalCopy = false;
                         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
                             System.out.println("My Files");
                             chunk = Server.getServer().getMyFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
                         } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
                             System.out.println("Remote Files");
+                            isLocalCopy = true;
                             chunk = Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
                         }
                         if (chunk != null) {
-                            if (chunk.getPeerList() != null) {
+                            if (!isLocalCopy) {
                                 if (chunk.getPeerList().containsKey(header.getSenderID())) {
                                     chunk.getPeerList().remove(header.getSenderID());
-                                    this.chunkUpdate(chunk);
+                                    chunk.update("ldata");
+                                    return;
                                 }
-                            } else {
-                                chunk.subtractRealDegree();
-                                this.chunkUpdate(chunk);
+                            }
+                            else if (chunk.getPeerList().containsKey(header.getSenderID())) {
+                                chunk.getPeerList().remove(header.getSenderID());
+                                chunk.update("rdata");
+                            }
+                            if(chunk.getRealDegree()<chunk.getRepDegree()){
+                                Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                                if (Files.exists(name)) {
+                                    standbyBackupList.put(header.getFileID()+header.getChunkNo(),"yo");
+
+                                    Chunk finalChunk = chunk;
+                                    Server.getServer().getPool().schedule(()->{
+                                        try {
+                                            if(standbyBackupList.containsKey(header.getFileID()+header.getChunkNo())){
+                                                byte[] file_content;
+                                                file_content = Files.readAllBytes(name);
+
+                                                byte[] message1 = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), (int) header.getChunkNo(), finalChunk.getRepDegree(), file_content);
+                                                byte[] message2 = MessageType.createStored("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), (int) header.getChunkNo());
+                                                DatagramPacket packet1 = new DatagramPacket(message1, message1.length, Server.getServer().getMdb().getAddress(), Server.getServer().getMdb().getPort());
+                                                DatagramPacket packet2 = new DatagramPacket(message2,message2.length,Server.getServer().getMc().getAddress(),Server.getServer().getMc().getPort());
+                                                System.out.println("SENDING CHUNK NO " + finalChunk.getChunkNo());
+                                                removeAux(1, Server.getServer().getPool(), packet1, packet2, header.getFileID(), header.getChunkNo(), finalChunk.getRepDegree());
+                                            }
+                                        }
+                                        catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                    },new Random().nextInt(401),TimeUnit.MILLISECONDS);
+                                }
                             }
                         }
                     }
@@ -227,15 +273,21 @@ public class Handler implements Runnable {
         }
     }
 
-    private void chunkUpdate(Chunk chunk) {
-        chunk.update("rdata");
-        if (chunk.getRepDegree() > chunk.getPeerCount()) {
-            chunk.getShallSend().set(true);
-            Server.getServer().getPool().schedule(() -> {
-                if (chunk.getShallSend().get()) {
-                    chunk.backup(Server.getServer().getPool());
+    private void removeAux(int i, ScheduledExecutorService pool, DatagramPacket packet1, DatagramPacket packet2, String fileId, int chunkNo, int repDegree) {
+        Server.getServer().getMdb().send(packet1);
+
+        Server.getServer().getPool().schedule(()-> Server.getServer().getMc().send(packet2),new Random().nextInt(401),TimeUnit.MILLISECONDS);
+
+        System.out.println("TRYING again "+chunkNo);
+        pool.schedule(() -> {
+            if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree) {
+                if (i < 16) {
+                    //System.out.println("Against: " + i + " " + this.agains.getAndIncrement() + " " + chunkNo);
+                    this.removeAux(i * 2, pool, packet1, packet2, fileId, chunkNo, repDegree);
+                } else {
+                    System.out.println("Gave up on removed backup subprotocol");
                 }
-            }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
-        }
+            }
+        }, i * 1000L + new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
 }
