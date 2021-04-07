@@ -38,7 +38,7 @@ task clientR1(type: JavaExec) {
 task clientRCL2(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint2", "RECLAIM", "0"
+    args "accesspoint2", "RECLAIM", "64000"
 }
 
 task clientB1(type: JavaExec) {
@@ -124,6 +124,12 @@ task server4(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
     args "1.1.0", "4", "accesspoint4", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+}
+
+task server5(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1.0", "5", "accesspoint5", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
 
 

@@ -16,10 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -30,21 +27,12 @@ public class Handler implements Runnable {
     static private long time = System.currentTimeMillis();
     private DatagramPacket packet;
     private int peerId;
-    private List<StandbyBackup> standbyBackupList;
+    private ConcurrentHashMap<String,String> standbyBackupList;
 
     Handler(DatagramPacket packet, int peerId) {
         this.packet = packet;
         this.peerId = peerId;
-        standbyBackupList = new ArrayList<>();
-    }
-
-    private void checkForStandby(String filedId,int chunkNo){
-        for(StandbyBackup standbyBackup:standbyBackupList){
-            if(standbyBackup.isEqual(filedId,chunkNo)){
-                standbyBackup.cancel();
-                return;
-            }
-        }
+        standbyBackupList = new ConcurrentHashMap<>();
     }
 
     private static String readContent(Path file) {
@@ -104,7 +92,7 @@ public class Handler implements Runnable {
 
                         if(Server.getServer().getMyFiles().containsKey(header.getFileID())) return;
 
-                        checkForStandby(header.getFileID(),header.getChunkNo());
+                        standbyBackupList.remove(header.getFileID()+header.getChunkNo());
 
                         byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
                         DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
@@ -143,8 +131,12 @@ public class Handler implements Runnable {
                                 buffer.clear();
                                 Server.getServer().getCurrentSize().addAndGet(body.length);
                             }
+
                         }
-                        Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                        if(Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())){
+                            Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                        }
+
                     }
                     case STORED -> {
                         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
@@ -197,36 +189,38 @@ public class Handler implements Runnable {
                             if (!isLocalCopy) {
                                 if (chunk.getPeerList().containsKey(header.getSenderID())) {
                                     chunk.getPeerList().remove(header.getSenderID());
-                                    this.chunkUpdate(chunk,"ldata");
+                                    chunk.update("ldata");
+                                    return;
                                 }
-                            } else {
-                                chunk.subtractRealDegree();
-                                this.chunkUpdate(chunk,"rdata");
+                            }
+                            else if (chunk.getPeerList().containsKey(header.getSenderID())) {
+                                chunk.getPeerList().remove(header.getSenderID());
+                                chunk.update("rdata");
                             }
                             if(chunk.getRealDegree()<chunk.getRepDegree()){
-                                if(isLocalCopy){
-                                    Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
-                                    if (Files.exists(name)) {
+                                Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                                if (Files.exists(name)) {
+                                    standbyBackupList.put(header.getFileID()+header.getChunkNo(),"yo");
+
+                                    Chunk finalChunk = chunk;
+                                    Server.getServer().getPool().schedule(()->{
                                         try {
-                                            StandbyBackup standbyBackup = new StandbyBackup(header.getFileID(),header.getChunkNo(),false);
-                                            standbyBackupList.add(standbyBackup);
+                                            if(standbyBackupList.containsKey(header.getFileID()+header.getChunkNo())){
+                                                byte[] file_content;
+                                                file_content = Files.readAllBytes(name);
 
-                                            Thread.sleep(new Random().nextInt(401));
-
-                                            standbyBackupList.remove(standbyBackup);
-                                            if(standbyBackup.isCanceled()) return;
-                                            byte[] file_content;
-                                            file_content = Files.readAllBytes(name);
-
-                                            byte[] message = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), (int) header.getChunkNo(),chunk.getRepDegree() ,file_content);
-                                            DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMdb().getAddress(), Server.getServer().getMdb().getPort());
-                                            System.out.println("SENDING CHUNK NO "+chunk.getChunkNo());
-                                            removeAux(1,Server.getServer().getPool(), packet,header.getFileID(),header.getChunkNo(),chunk.getRepDegree());
+                                                byte[] message1 = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), (int) header.getChunkNo(), finalChunk.getRepDegree(), file_content);
+                                                byte[] message2 = MessageType.createStored("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), (int) header.getChunkNo());
+                                                DatagramPacket packet1 = new DatagramPacket(message1, message1.length, Server.getServer().getMdb().getAddress(), Server.getServer().getMdb().getPort());
+                                                DatagramPacket packet2 = new DatagramPacket(message2,message2.length,Server.getServer().getMc().getAddress(),Server.getServer().getMc().getPort());
+                                                System.out.println("SENDING CHUNK NO " + finalChunk.getChunkNo());
+                                                removeAux(1, Server.getServer().getPool(), packet1, packet2, header.getFileID(), header.getChunkNo(), finalChunk.getRepDegree());
+                                            }
                                         }
-                                        catch (IOException | InterruptedException e){
+                                        catch (IOException e) {
                                             e.printStackTrace();
                                         }
-                                    }
+                                    },new Random().nextInt(401),TimeUnit.MILLISECONDS);
                                 }
                             }
                         }
@@ -279,30 +273,21 @@ public class Handler implements Runnable {
         }
     }
 
-    private void removeAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
-        Server.getServer().getMdb().send(packet);
+    private void removeAux(int i, ScheduledExecutorService pool, DatagramPacket packet1, DatagramPacket packet2, String fileId, int chunkNo, int repDegree) {
+        Server.getServer().getMdb().send(packet1);
+
+        Server.getServer().getPool().schedule(()-> Server.getServer().getMc().send(packet2),new Random().nextInt(401),TimeUnit.MILLISECONDS);
+
         System.out.println("TRYING again "+chunkNo);
         pool.schedule(() -> {
             if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree) {
                 if (i < 16) {
                     //System.out.println("Against: " + i + " " + this.agains.getAndIncrement() + " " + chunkNo);
-                    this.removeAux(i * 2, pool, packet, fileId, chunkNo, repDegree);
+                    this.removeAux(i * 2, pool, packet1, packet2, fileId, chunkNo, repDegree);
                 } else {
                     System.out.println("Gave up on removed backup subprotocol");
                 }
             }
         }, i * 1000L + new Random().nextInt(401), TimeUnit.MILLISECONDS);
-    }
-
-    private void chunkUpdate(Chunk chunk,String folder) {
-        chunk.update(folder);
-        if (chunk.getRepDegree() > chunk.getPeerCount()) {
-            chunk.getShallSend().set(true);
-            Server.getServer().getPool().schedule(() -> {
-                if (chunk.getShallSend().get()) {
-                    chunk.backup(Server.getServer().getPool());
-                }
-            }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
-        }
     }
 }
