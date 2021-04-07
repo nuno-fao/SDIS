@@ -62,7 +62,7 @@ task clientB3(type: JavaExec) {
 task clientB4(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint1", "BACKUP", "testfile1c.txt", "2"
+    args "accesspoint1", "BACKUP", "testfile1c.txt", "1"
 }
 
 

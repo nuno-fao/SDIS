@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -179,7 +180,7 @@ public class Handler implements Runnable {
                         }
                     }
                     case REMOVED -> {
-                        System.out.println("REMOVED");
+                        System.out.println("REMOVED CHUNK " + header.getChunkNo());
                         Chunk chunk = null;
                         boolean isLocalCopy = false;
                         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
@@ -193,16 +194,15 @@ public class Handler implements Runnable {
 
                         }
                         if (chunk != null) {
-                            if (chunk.getPeerList() != null) {
+                            if (!isLocalCopy) {
                                 if (chunk.getPeerList().containsKey(header.getSenderID())) {
                                     chunk.getPeerList().remove(header.getSenderID());
-                                    this.chunkUpdate(chunk);
+                                    this.chunkUpdate(chunk,"ldata");
                                 }
                             } else {
                                 chunk.subtractRealDegree();
-                                this.chunkUpdate(chunk);
+                                this.chunkUpdate(chunk,"rdata");
                             }
-
                             if(chunk.getRealDegree()<chunk.getRepDegree()){
                                 if(isLocalCopy){
                                     Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
@@ -214,15 +214,14 @@ public class Handler implements Runnable {
                                             Thread.sleep(new Random().nextInt(401));
 
                                             standbyBackupList.remove(standbyBackup);
-
                                             if(standbyBackup.isCanceled()) return;
-
                                             byte[] file_content;
                                             file_content = Files.readAllBytes(name);
 
                                             byte[] message = MessageType.createPutchunk("1.0", (int) Server.getServer().getPeerId(), header.getFileID(), (int) header.getChunkNo(),chunk.getRepDegree() ,file_content);
                                             DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMdb().getAddress(), Server.getServer().getMdb().getPort());
-                                            Server.getServer().getMdb().send(packet);
+                                            System.out.println("SENDING CHUNK NO "+chunk.getChunkNo());
+                                            removeAux(1,Server.getServer().getPool(), packet,header.getFileID(),header.getChunkNo(),chunk.getRepDegree());
                                         }
                                         catch (IOException | InterruptedException e){
                                             e.printStackTrace();
@@ -283,8 +282,23 @@ public class Handler implements Runnable {
         }
     }
 
-    private void chunkUpdate(Chunk chunk) {
-        chunk.update("rdata");
+    private void removeAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
+        Server.getServer().getMdb().send(packet);
+        System.out.println("TRYING again "+chunkNo);
+        pool.schedule(() -> {
+            if (Server.getServer().getMyFiles().get(fileId).getReplicationDegree(chunkNo) < repDegree) {
+                if (i < 16) {
+                    //System.out.println("Against: " + i + " " + this.agains.getAndIncrement() + " " + chunkNo);
+                    this.removeAux(i * 2, pool, packet, fileId, chunkNo, repDegree);
+                } else {
+                    System.out.println("Gave up on removed backup subprotocol");
+                }
+            }
+        }, i * 1000L + new Random().nextInt(401), TimeUnit.MILLISECONDS);
+    }
+
+    private void chunkUpdate(Chunk chunk,String folder) {
+        chunk.update(folder);
         if (chunk.getRepDegree() > chunk.getPeerCount()) {
             chunk.getShallSend().set(true);
             Server.getServer().getPool().schedule(() -> {
