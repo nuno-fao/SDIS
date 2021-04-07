@@ -179,7 +179,7 @@ public class Handler implements Runnable {
                             f.delete();
                         }
                     }
-                    case REMOVED -> {   //TODO os headers chegam com chunkNo duplicados
+                    case REMOVED -> {
                         System.out.println("REMOVED CHUNK " + header.getChunkNo());
                         Chunk chunk = null;
                         boolean isLocalCopy = false;

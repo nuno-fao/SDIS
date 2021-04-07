@@ -52,14 +52,16 @@ public class MulticastDispatcher implements Runnable {
     @Override
     public void run() {
         System.out.println(this.host + " Running");
-        byte[] buffer = new byte[this.bufferSize];
-        DatagramPacket packet = new DatagramPacket(buffer, this.bufferSize);
-        while (true) try {
-            this.socket.receive(packet);
+        while (true) {
+            try {
+                byte[] buffer = new byte[this.bufferSize];
+                DatagramPacket packet = new DatagramPacket(buffer, this.bufferSize);
+                this.socket.receive(packet);
 
-            this.pool.execute(new Handler(packet, this.peerId));
-        } catch (IOException e) {
-            e.printStackTrace();
+                this.pool.execute(new Handler(packet, this.peerId));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
