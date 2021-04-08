@@ -27,7 +27,7 @@ public class RemoteFile {
             if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
                 this.chunks.get(chunkNo).getPeerList().put(peerId, true);
             }
-            this.chunks.get(chunkNo).updateRdata();
+            this.chunks.get(chunkNo).update("rdata");
         }
     }
 
