@@ -72,7 +72,7 @@ public class Handler implements Runnable {
             switch (header.getMessageType()) {
                 case PUTCHUNK -> {
                     if (Server.getServer().getVersion().equals("1.0")) {
-                        putchunkAnswer(body, header);
+                        putchunkAnswer(body, header, 401);
                     } else if (Server.getServer().getVersion().equals("1.1")) {
                         try {
                             Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).setRepDegree(header.getReplicationDeg());
@@ -82,10 +82,10 @@ public class Handler implements Runnable {
                         Server.getServer().getPool().schedule(() -> {
                             try {
                                 if (Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).repDegSmallerThanRealDegree()) {
-                                    putchunkAnswer(finalBody, header);
+                                    putchunkAnswer(finalBody, header, 0);
                                 }
                             } catch (Exception ignored) {
-                                putchunkAnswer(finalBody, header);
+                                putchunkAnswer(finalBody, header, 0);
                             }
                         }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
                     }
@@ -241,7 +241,7 @@ public class Handler implements Runnable {
         }
     }
 
-    private void putchunkAnswer(byte[] body, Header header) {
+    private void putchunkAnswer(byte[] body, Header header, int waitTime) {
         time = System.currentTimeMillis();
 
         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
@@ -290,7 +290,11 @@ public class Handler implements Runnable {
 
         }
         if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
-            Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
+            if (waitTime == 0) {
+                Server.getServer().getMc().send(packet);
+            } else {
+                Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(waitTime), TimeUnit.MILLISECONDS);
+            }
         }
     }
 
