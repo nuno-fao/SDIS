@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.net.MalformedURLException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -73,17 +72,6 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         new Thread(this.mdr).start();
 
 
-
-    }
-
-    public void sendAwake(){
-        System.out.println("SENDING AWAKE");
-        if(this.version.equals("1.1")){
-            //byte message[] = MessageType.createAwake("1.1", (int) this.peerId);
-            byte message[] = "yo".getBytes();
-            DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-            this.pool.schedule(()-> this.mc.send(packet),3, TimeUnit.SECONDS);
-        }
     }
 
     static Server createServer(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
@@ -109,6 +97,17 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
         Server.getServer().sendAwake();
 
+    }
+
+    private void sendAwake() {
+        System.out.println("SENDING AWAKE");
+        if (this.version.equals("1.1")) {
+            //byte message[] = MessageType.createAwake("1.1", (int) this.peerId);
+            byte message[] = "yo".getBytes();
+            DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+            System.out.println(this.mc.getAddress());
+            this.pool.schedule(() -> this.mc.send(packet), 3, TimeUnit.MILLISECONDS);
+        }
     }
 
     public ConcurrentHashMap<String, Boolean> getChunkQueue() {
@@ -406,9 +405,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     }
 
 
-
     private boolean deleteFile(String fileId) {
-        if(this.version.equals("1.0")){
+        if (this.version.equals("1.0")) {
             byte message[] = MessageType.createDelete("1.0", (int) this.peerId, fileId);
             DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
             try {
@@ -422,12 +420,11 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             this.deleteAux(0, this.pool, packet);
             this.myFiles.remove(fileId);
             return true;
-        }
-        else if(this.version.equals("1.1")){
-            if(this.myFiles.containsKey(fileId)){
+        } else if (this.version.equals("1.1")) {
+            if (this.myFiles.containsKey(fileId)) {
                 byte message[] = MessageType.createDelete("1.1", (int) this.peerId, fileId);
                 DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-                waitingForPurge.put(fileId,this.myFiles.get(fileId));
+                waitingForPurge.put(fileId, this.myFiles.get(fileId));
                 this.deleteAux(0, this.pool, packet);
                 return true;
             }
