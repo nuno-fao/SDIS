@@ -194,6 +194,7 @@ public class Handler implements Runnable {
                 case PURGED -> {
                     if(Server.getServer().getWaitingForPurge().containsKey(header.getFileID())){
                         Server.getServer().getWaitingForPurge().get(header.getFileID()).removePeerFromChunks(peerId);
+                        Server.getServer().getWaitingForPurge().get(header.getFileID()).updateChunks();
                     }
                     if(Server.getServer().getWaitingForPurge().get(header.getFileID()).getChunks().size()==0){
                         Server.getServer().getWaitingForPurge().remove(header.getFileID());

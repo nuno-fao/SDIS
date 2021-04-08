@@ -144,6 +144,12 @@ public class File {
         }
     }
 
+    public void updateChunks(){
+        for(Chunk chunk:chunks.values()){
+            chunk.update("ldata");
+        }
+    }
+
     public boolean peerHasChunks(int peerId){
         for(Chunk chunk:chunks.values()){
             if(chunk.getPeerList().containsKey(peerId)){

@@ -100,6 +100,12 @@ public enum MessageType {
             case "DELETE" -> {
                 return MessageType.DELETE;
             }
+            case "AWAKE" -> {
+                return MessageType.AWAKE;
+            }
+            case "PURGED" -> {
+                return MessageType.PURGED;
+            }
             default -> throw new ParseError();
         }
     }
