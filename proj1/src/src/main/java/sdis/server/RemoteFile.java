@@ -26,9 +26,8 @@ public class RemoteFile {
         if (this.chunks.containsKey(chunkNo)) {
             if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
                 this.chunks.get(chunkNo).getPeerList().put(peerId, true);
-                this.chunks.get(chunkNo).update("rdata");
             }
-
+            this.chunks.get(chunkNo).update("rdata");
         }
     }
 
@@ -55,13 +54,13 @@ public class RemoteFile {
         }
     }
 
-    public boolean deleteChunk(int chunkId){
-        if(chunks.containsKey(chunkId)){
+    public boolean deleteChunk(int chunkId) {
+        if (chunks.containsKey(chunkId)) {
             chunks.remove(chunkId);
             Path rInfo = Path.of(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + chunkId);
             Path chunkData = Path.of(Server.getServer().getServerName() + "/" + this.fileId + "/" + chunkId);
-            if(Files.exists(rInfo) && Files.exists(chunkData)){
-                try{
+            if (Files.exists(rInfo) && Files.exists(chunkData)) {
+                try {
                     Files.delete(rInfo);
                     Files.delete(chunkData);
                     return true;

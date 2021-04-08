@@ -35,6 +35,19 @@ task clientR1(type: JavaExec) {
     args "accesspoint1", "RESTORE", "testfile1b.png"
 }
 
+task clientR2(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint2", "RESTORE", "testfile1d.txt"
+}
+
+task clientR3(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint1", "RESTORE", "testfile1.txt"
+}
+
+
 task clientRCL2(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
@@ -105,31 +118,31 @@ task clientD4(type: JavaExec) {
 task server1(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
-    args "1.1.0", "1", "accesspoint1", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+    args "1.1", "1", "accesspoint1", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
 
 task server2(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
-    args "1.1.0", "2", "accesspoint2", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+    args "1.1", "2", "accesspoint2", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
 
 task server3(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
-    args "1.1.0", "3", "accesspoint3", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+    args "1.1", "3", "accesspoint3", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
 
 task server4(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
-    args "1.1.0", "4", "accesspoint4", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+    args "1.1", "4", "accesspoint4", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
 
 task server5(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Server"
-    args "1.1.0", "5", "accesspoint5", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+    args "1.1", "5", "accesspoint5", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
 
 

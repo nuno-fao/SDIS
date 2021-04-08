@@ -56,6 +56,11 @@ public enum MessageType {
             this.processSenderID(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             this.processChunkNo(h, argsList[4]);
+            if (argsList[0].equals("1.1")) {
+                this.processAddress(h, argsList[5]);
+                this.processPort(h, argsList[6]);
+                return 7;
+            }
             return 5;
         }
     };
@@ -97,7 +102,7 @@ public enum MessageType {
     }
 
     public static byte[] createGetchunk(String version, int senderId, String fileId, int chunkNo) {
-        byte a[] = (version + " GETCHUNK " + senderId + " " + fileId + " " + chunkNo +  " \r\n\r\n").getBytes();
+        byte a[] = (version + " GETCHUNK " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(a.length);
         try {
             outputStream.write(a);
@@ -105,6 +110,11 @@ public enum MessageType {
             e.printStackTrace();
         }
         return outputStream.toByteArray();
+    }
+
+    public static byte[] createChunk_1_1(String version, int senderId, String fileId, int chunkNo, String address, int port) {
+        byte a[] = (version + " CHUNK " + senderId + " " + fileId + " " + chunkNo + " " + address + " " + port + " \r\n\r\n").getBytes();
+        return a;
     }
 
     public static byte[] createChunk(String version, int senderId, String fileId, int chunkNo, byte[] body) {
@@ -145,15 +155,17 @@ public enum MessageType {
     }
 
     void processFileID(Header h, String fileID) throws ParseError {
-        if (fileID.length() != 64)
+        if (fileID.length() != 64) {
             throw new ParseError();
+        }
         h.setFileID(fileID.toLowerCase());
     }
 
     void processChunkNo(Header h, String chunkNo) throws ParseError {
         try {
-            if (chunkNo.length() > 6)
+            if (chunkNo.length() > 6) {
                 throw new ParseError();
+            }
             h.setChunkNo(Integer.parseInt(chunkNo));
 
             if (h.getChunkNo() < 0) {
@@ -166,8 +178,9 @@ public enum MessageType {
 
     void processReplicationDeg(Header h, String replicationDeg) throws ParseError {
         try {
-            if (replicationDeg.length() != 1)
+            if (replicationDeg.length() != 1) {
                 throw new ParseError();
+            }
             h.setReplicationDeg(Integer.parseInt(replicationDeg));
             if (h.getReplicationDeg() < 0) {
                 throw new ParseError();
@@ -176,5 +189,18 @@ public enum MessageType {
             throw new ParseError();
         }
     }
+
+    void processAddress(Header h, String address) throws ParseError {
+        h.setAddress(address);
+    }
+
+    void processPort(Header h, String port) throws ParseError {
+        try {
+            h.setPort(Integer.valueOf(port));
+        } catch (Exception e) {
+            throw new ParseError();
+        }
+    }
+
 }
 

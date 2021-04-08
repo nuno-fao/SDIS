@@ -4,8 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HeaderConcrete implements Header {
-    private String version, fileID;
-    private Integer senderID, chunkNo, replicationDeg;
+    private String version, fileID, address;
+    private Integer senderID, chunkNo, replicationDeg, port;
+
     private MessageType messageType;
 
     private HeaderConcrete() {
@@ -17,7 +18,7 @@ public class HeaderConcrete implements Header {
         return cp;
     }
 
-    static List<Header> getHeaders(String headerMessage) throws ParseError {
+    static List<Header> getHeaders(String headerMessage) {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
         List<Header> outList = new ArrayList<>();
         Header localHeader;
@@ -48,9 +49,9 @@ public class HeaderConcrete implements Header {
                 //limpa os elementos já processados para ler o proximo header
                 argsList = getSubArray(argsList, lIndex);
                 outList.add(localHeader);
-            } catch (ArrayIndexOutOfBoundsException e) {
-                throw new ParseError();
+            } catch (Exception | ParseError e) {
             }
+
         }
     }
 
@@ -113,5 +114,26 @@ public class HeaderConcrete implements Header {
     public void setReplicationDeg(Integer replicationDeg) {
         this.replicationDeg = replicationDeg;
     }
+
+    @Override
+    public Integer getPort() {
+        return port;
+    }
+
+    @Override
+    public void setPort(Integer port) {
+        this.port = port;
+    }
+
+    @Override
+    public String getAddress() {
+        return address;
+    }
+
+    @Override
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
 }
 

@@ -44,7 +44,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private ConcurrentHashMap<String, RestoreFile> fileRestoring = new ConcurrentHashMap<>();
     private AtomicLong maxSize = new AtomicLong(-1);
     private AtomicLong currentSize = new AtomicLong(0);
-
+    private ConcurrentHashMap<String, Boolean> chunkQueue = new ConcurrentHashMap<>();
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
@@ -93,6 +93,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             throw new Exception("invalid parameter " + args[1] + ", should be a valid number");
         }
         createServer(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
+    }
+
+    public ConcurrentHashMap<String, Boolean> getChunkQueue() {
+        return chunkQueue;
     }
 
     public AtomicLong getMaxSize() {
@@ -218,7 +222,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         return this.accessPoint;
     }
 
-    String getVersion() {
+    public String getVersion() {
         return this.version;
     }
 
@@ -270,7 +274,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 InputStream io = new FileInputStream(filename);
                 send(f, replicationDegree, io, 0);
 
-                this.myFiles.get(f.getFileId()).setNumChunks((int) (size / 64000 + 1));
+                this.myFiles.get(f.getFileId()).setNumChunks((int) (size / Server.server.getChunkSize() + 1));
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -304,7 +308,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        if (size == -1) {
+        if (size == -1 || size == 0) {
             byte message[] = MessageType.createPutchunk("1.0", (int) this.peerId, f.getFileId(), i, replicationDegree, "".getBytes());
             DatagramPacket packet = new DatagramPacket(message, message.length, this.mdb.getAddress(), this.mdb.getPort());
             this.backupAux(1, this.pool, packet, f.getFileId(), i, replicationDegree);
@@ -346,10 +350,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         this.fileRestoring.put(fileID, new RestoreFile(receivedChunks));
 
         for (Chunk chunk : this.myFiles.get(fileID).getChunks().values()) {
-            System.out.println("ENTREI AQUI YO");
             byte[] message = MessageType.createGetchunk("1.0", (int) this.peerId, fileID, chunk.getChunkNo());
             DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-            this.RestoreAux(1, this.pool, packet, fileID, chunk.getChunkNo());
+            String finalFileID = fileID;
+            pool.schedule(() -> RestoreAux(1, this.pool, packet, finalFileID, chunk.getChunkNo(), 1), new Random().nextInt(401), TimeUnit.MILLISECONDS);
 
         }
 
@@ -358,13 +362,13 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     }
 
-    private void RestoreAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileID, int chunkNo) {
+    private void RestoreAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileID, int chunkNo, int t) {
         this.mc.send(packet);
         pool.schedule(() -> {
-            if (i < 5 && !this.fileRestoring.get(fileID).getChunks().containsKey(chunkNo)) {
-                this.RestoreAux(i + 1, pool, packet, fileID, chunkNo);
+            if (i < 5 && this.fileRestoring.get(fileID) != null && !this.fileRestoring.get(fileID).getChunks().containsKey(chunkNo)) {
+                this.RestoreAux(i + 1, pool, packet, fileID, chunkNo, t * 2);
             }
-        }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
+        }, new Random().nextInt(401) + t * 1000, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -420,7 +424,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             //System.out.println("ENTREI PARA LIMPAR");
 
             List<Chunk> cleanable = new ArrayList<>();
-            for(RemoteFile file:this.storedFiles.values()){
+            for (RemoteFile file : this.storedFiles.values()) {
                 cleanable.addAll(file.getChunks().values());
             }
             cleanable.sort(new Comparator<>() {
@@ -430,17 +434,17 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 }
             });
 
-            for(Chunk chunk:cleanable){
-                if(storedFiles.get(chunk.getFileId()).deleteChunk(chunk.getChunkNo())){
+            for (Chunk chunk : cleanable) {
+                if (storedFiles.get(chunk.getFileId()).deleteChunk(chunk.getChunkNo())) {
 
                     //System.out.println("REMOVING CHUNK "+chunk.getChunkNo()+" "+chunk.getSize());
                     currentSize.addAndGet(-chunk.getSize());
 
-                    byte message[] = MessageType.createRemoved("1.0", (int) this.peerId, chunk.getFileId(),chunk.getChunkNo());
+                    byte message[] = MessageType.createRemoved("1.0", (int) this.peerId, chunk.getFileId(), chunk.getChunkNo());
                     DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
                     this.mc.send(packet);
                     //System.out.println("CURRENT SIZE BEFORE BREAK");
-                    if(currentSize.get()<=maxSize.get()){
+                    if (currentSize.get() <= maxSize.get()) {
                         break;
                     }
                 }

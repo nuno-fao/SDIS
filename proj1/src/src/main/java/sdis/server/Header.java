@@ -24,4 +24,13 @@ public interface Header {
     Integer getReplicationDeg();
 
     void setReplicationDeg(Integer replicationDeg);
+
+    Integer getPort();
+
+    void setPort(Integer port);
+
+    String getAddress();
+
+    void setAddress(String address);
+
 }
