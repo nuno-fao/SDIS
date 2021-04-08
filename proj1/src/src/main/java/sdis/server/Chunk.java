@@ -23,10 +23,6 @@ public class Chunk {
     private AtomicBoolean shallSend = new AtomicBoolean(true);
     private int size = 0;
 
-    public int getRealDegree() {
-        return realDegree;
-    }
-
     public Chunk(int chunkNo, String fileId, int repDegree) {
 
         this.chunkNo = chunkNo;
@@ -49,6 +45,10 @@ public class Chunk {
         this.repDegree = repDegree;
         this.realDegree = realDegree;
         this.size = size;
+    }
+
+    public int getRealDegree() {
+        return realDegree;
     }
 
     public int getSize() {
@@ -81,11 +81,17 @@ public class Chunk {
         return this.realDegree;
     }
 
-
     public int getRepDegree() {
         return this.repDegree;
     }
 
+    void setRepDegree(int repDegree) {
+        this.repDegree = repDegree;
+    }
+
+    public boolean repDegSmallerThanRealDegree() {
+        return repDegree < getPeerCount();
+    }
 
     synchronized void updateRdata() {
         Path path = Paths.get(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + this.chunkNo);
