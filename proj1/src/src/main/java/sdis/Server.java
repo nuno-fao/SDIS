@@ -45,6 +45,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private AtomicLong maxSize = new AtomicLong(-1);
     private AtomicLong currentSize = new AtomicLong(0);
     private ConcurrentHashMap<String, Boolean> chunkQueue = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, RemoteFile> waitingForPutchunk = new ConcurrentHashMap<>();
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
@@ -93,6 +94,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             throw new Exception("invalid parameter " + args[1] + ", should be a valid number");
         }
         createServer(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
+    }
+
+    public ConcurrentHashMap<String, RemoteFile> getWaitingForPutchunk() {
+        return waitingForPutchunk;
     }
 
     public ConcurrentHashMap<String, Boolean> getChunkQueue() {

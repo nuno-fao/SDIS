@@ -12,7 +12,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class Chunk {
     private int repDegree = 0;
@@ -98,7 +98,7 @@ public class Chunk {
         AsynchronousFileChannel fileChannel = null;
         try {
             fileChannel = AsynchronousFileChannel.open(
-                    path, TRUNCATE_EXISTING, CREATE);
+                    path, WRITE, CREATE);
         } catch (IOException e) {
             e.printStackTrace();
         }

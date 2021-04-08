@@ -71,23 +71,32 @@ public class Handler implements Runnable {
             }
             switch (header.getMessageType()) {
                 case PUTCHUNK -> {
+                    byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
+                    DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
                     if (Server.getServer().getVersion().equals("1.0")) {
-                        putchunkAnswer(body, header, 401);
+                        putchunkAnswer(body, header, 401, packet);
                     } else if (Server.getServer().getVersion().equals("1.1")) {
                         try {
-                            Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).setRepDegree(header.getReplicationDeg());
+                            Server.getServer().getWaitingForPutchunk().get(header.getFileID()).getChunks().get(header.getChunkNo()).setRepDegree(header.getReplicationDeg());
                         } catch (Exception e) {
                         }
                         byte[] finalBody = body;
                         Server.getServer().getPool().schedule(() -> {
                             try {
-                                if (Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).repDegSmallerThanRealDegree()) {
-                                    putchunkAnswer(finalBody, header, 0);
+                                if (Server.getServer().getWaitingForPutchunk().get(header.getFileID()).getChunks().get(header.getChunkNo()).repDegSmallerThanRealDegree()) {
+                                    putchunkAnswer(finalBody, header, 0, packet);
                                 }
                             } catch (Exception ignored) {
-                                putchunkAnswer(finalBody, header, 0);
+                                try {
+                                    if (Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).repDegSmallerThanRealDegree()) {
+                                        putchunkAnswer(finalBody, header, 0, packet);
+                                    }
+                                } catch (Exception e) {
+                                    putchunkAnswer(finalBody, header, 0, packet);
+                                }
                             }
-                        }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
+                            Server.getServer().getWaitingForPutchunk().remove(header.getFileID());
+                        }, new Random().nextInt(801), TimeUnit.MILLISECONDS);
                     }
                 }
                 case STORED -> {
@@ -99,7 +108,7 @@ public class Handler implements Runnable {
                         RemoteFile f = new RemoteFile(header.getFileID());
                         f.getChunks().put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), -1));
                         f.addStored(header.getChunkNo(), header.getSenderID());
-                        Server.getServer().getStoredFiles().put(header.getFileID(), f);
+                        Server.getServer().getWaitingForPutchunk().put(header.getFileID(), f);
                     }
                 }
                 case GETCHUNK -> {
@@ -241,19 +250,19 @@ public class Handler implements Runnable {
         }
     }
 
-    private void putchunkAnswer(byte[] body, Header header, int waitTime) {
-        time = System.currentTimeMillis();
-
+    private void putchunkAnswer(byte[] body, Header header, int waitTime, DatagramPacket packet) {
         if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
             return;
         }
+        boolean hasSpace = (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get());
+        boolean hasFile = Server.getServer().getStoredFiles().containsKey(header.getFileID());
+        boolean hasStored = (hasFile && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo()));
 
         standbyBackupList.remove(header.getFileID() + header.getChunkNo());
 
-        byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
-        DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-        if (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get()) {
-            if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
+
+        if (hasSpace) {
+            if (!hasFile) {
                 try {
                     Files.createDirectories(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID()));
                 } catch (IOException e) {
@@ -262,7 +271,12 @@ public class Handler implements Runnable {
                 Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
             }
             if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
-                Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
+                Chunk c;
+                if (Server.getServer().getWaitingForPutchunk().containsKey(header.getFileID())) {
+                    c = Server.getServer().getWaitingForPutchunk().get(header.getFileID()).chunks.get(header.getChunkNo());
+                } else {
+                    c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
+                }
                 c.getPeerList().put(peerId, true);
                 c.update("rdata");
                 c.getPeerList().put((int) Server.getServer().getPeerId(), true);
@@ -287,7 +301,6 @@ public class Handler implements Runnable {
                 buffer.clear();
                 Server.getServer().getCurrentSize().addAndGet(body.length);
             }
-
         }
         if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
             if (waitTime == 0) {
