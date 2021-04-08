@@ -63,6 +63,21 @@ public enum MessageType {
             }
             return 5;
         }
+    },
+    PURGED {
+        @Override
+        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
+            this.processSenderID(h, argsList[2]);
+            this.processFileID(h, argsList[3]);
+            return 4;
+        }
+    },
+    AWAKE {
+        @Override
+        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
+            this.processSenderID(h, argsList[2]);
+            return 3;
+        }
     };
 
     static MessageType parseMessageType(String messageType) throws ParseError {
@@ -114,6 +129,16 @@ public enum MessageType {
 
     public static byte[] createChunk_1_1(String version, int senderId, String fileId, int chunkNo, String address, int port) {
         byte a[] = (version + " CHUNK " + senderId + " " + fileId + " " + chunkNo + " " + address + " " + port + " \r\n\r\n").getBytes();
+        return a;
+    }
+
+    public static byte[] createAwake(String version, int senderId) {
+        byte a[] = (version + " AWAKE " + senderId + " \r\n\r\n").getBytes();
+        return a;
+    }
+
+    public static byte[] createPurged(String version, int senderId, String fileId) {
+        byte a[] = (version + " PURGED " + senderId + " " + fileId + " \r\n\r\n").getBytes();
         return a;
     }
 

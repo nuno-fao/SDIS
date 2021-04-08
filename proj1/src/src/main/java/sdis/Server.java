@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.net.MalformedURLException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -45,6 +46,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private AtomicLong maxSize = new AtomicLong(-1);
     private AtomicLong currentSize = new AtomicLong(0);
     private ConcurrentHashMap<String, Boolean> chunkQueue = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, File> waitingForPurge = new ConcurrentHashMap<>();
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
@@ -71,6 +73,17 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         new Thread(this.mdr).start();
 
 
+
+    }
+
+    public void sendAwake(){
+        System.out.println("SENDING AWAKE");
+        if(this.version.equals("1.1")){
+            //byte message[] = MessageType.createAwake("1.1", (int) this.peerId);
+            byte message[] = "yo".getBytes();
+            DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+            this.pool.schedule(()-> this.mc.send(packet),3, TimeUnit.SECONDS);
+        }
     }
 
     static Server createServer(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
@@ -93,6 +106,9 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             throw new Exception("invalid parameter " + args[1] + ", should be a valid number");
         }
         createServer(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
+
+        Server.getServer().sendAwake();
+
     }
 
     public ConcurrentHashMap<String, Boolean> getChunkQueue() {
@@ -224,6 +240,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
     public String getVersion() {
         return this.version;
+    }
+
+    public ConcurrentHashMap<String, File> getWaitingForPurge() {
+        return waitingForPurge;
     }
 
     private void startRemoteObject() {
@@ -385,20 +405,35 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         return true;
     }
 
+
+
     private boolean deleteFile(String fileId) {
-        byte message[] = MessageType.createDelete("1.0", (int) this.peerId, fileId);
-        DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-        try {
-            Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + fileId))
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(java.io.File::delete);
-        } catch (IOException e) {
+        if(this.version.equals("1.0")){
+            byte message[] = MessageType.createDelete("1.0", (int) this.peerId, fileId);
+            DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+            try {
+                Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + fileId))
+                        .sorted(Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(java.io.File::delete);
+            } catch (IOException e) {
+                return false;
+            }
+            this.deleteAux(0, this.pool, packet);
+            this.myFiles.remove(fileId);
+            return true;
+        }
+        else if(this.version.equals("1.1")){
+            if(this.myFiles.containsKey(fileId)){
+                byte message[] = MessageType.createDelete("1.1", (int) this.peerId, fileId);
+                DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+                waitingForPurge.put(fileId,this.myFiles.get(fileId));
+                this.deleteAux(0, this.pool, packet);
+                return true;
+            }
             return false;
         }
-        this.deleteAux(0, this.pool, packet);
-        this.myFiles.remove(fileId);
-        return true;
+        return false;
     }
 
     private void deleteAux(int i, ScheduledExecutorService pool, DatagramPacket packet) {
