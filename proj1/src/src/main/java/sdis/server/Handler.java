@@ -65,71 +65,45 @@ public class Handler implements Runnable {
             if (header.getSenderID() == this.peerId) {
                 return;
             }
+            if (!header.getVersion().equals("1.0") && Server.getServer().getVersion().equals("1.0")) {
+                System.out.println("Incoming message with Version " + header.getVersion() + " not supported by the Peer");
+                continue;
+            }
             switch (header.getMessageType()) {
                 case PUTCHUNK -> {
-                    time = System.currentTimeMillis();
-
-                    if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
-                        return;
-                    }
-
-                    standbyBackupList.remove(header.getFileID() + header.getChunkNo());
-
-                    byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
-                    DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
-                    if (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get()) {
-                        if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
-                            try {
-                                Files.createDirectories(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID()));
-                            } catch (IOException e) {
-                                System.exit(1);
-                            }
-                            Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
+                    if (Server.getServer().getVersion().equals("1.0")) {
+                        putchunkAnswer(body, header);
+                    } else if (Server.getServer().getVersion().equals("1.1")) {
+                        try {
+                            Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).setRepDegree(header.getReplicationDeg());
+                        } catch (Exception e) {
                         }
-                        if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
-                            Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
-                            c.getPeerList().put(peerId, true);
-                            c.update("rdata");
-                            c.getPeerList().put((int) Server.getServer().getPeerId(), true);
-
-                            Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), c);
-
-                            Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
-                            AsynchronousFileChannel fileChannel = null;
+                        byte[] finalBody = body;
+                        Server.getServer().getPool().schedule(() -> {
                             try {
-                                fileChannel = AsynchronousFileChannel.open(
-                                        path, WRITE, CREATE);
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                                if (Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).repDegSmallerThanRealDegree()) {
+                                    putchunkAnswer(finalBody, header);
+                                }
+                            } catch (Exception ignored) {
+                                putchunkAnswer(finalBody, header);
                             }
-
-                            ByteBuffer buffer = ByteBuffer.allocate(body.length);
-
-                            buffer.put(body);
-                            buffer.flip();
-
-                            fileChannel.write(buffer, 0);
-                            buffer.clear();
-                            Server.getServer().getCurrentSize().addAndGet(body.length);
-                        }
-
+                        }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
                     }
-                    if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
-                        Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
-                    }
-
                 }
                 case STORED -> {
                     if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
                         Server.getServer().getMyFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
                     } else if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
                         Server.getServer().getStoredFiles().get(header.getFileID()).addStored(header.getChunkNo(), header.getSenderID());
-                    } else {
-                        //System.out.println("Skipped " + header.getFileID() + "/" + header.getChunkNo() + " : " + skipped.getAndIncrement());
+                    } else if (Server.getServer().getVersion().equals("1.1")) {
+                        RemoteFile f = new RemoteFile(header.getFileID());
+                        f.getChunks().put(header.getChunkNo(), new Chunk(header.getChunkNo(), header.getFileID(), -1));
+                        f.addStored(header.getChunkNo(), header.getSenderID());
+                        Server.getServer().getStoredFiles().put(header.getFileID(), f);
                     }
                 }
                 case GETCHUNK -> {
-                    //todo verificar se o initiator tem que ser 1.1 para funcionar com peers 1.1
+                    Server.getServer().getChunkQueue().remove(header.getFileID() + header.getChunkNo());
                     if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
                         Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
                         if (Files.exists(name)) {
@@ -152,6 +126,7 @@ public class Handler implements Runnable {
                                             if (!(Server.getServer().getChunkQueue().containsKey(header.getFileID() + header.getChunkNo()))) {
                                                 try {
                                                     ServerSocket s = new ServerSocket(0);
+                                                    s.setSoTimeout(2000);
                                                     byte[] message = MessageType.createChunk_1_1("1.1", (int) Server.getServer().getPeerId(), header.getFileID(), header.getChunkNo(), InetAddress.getLocalHost().getHostAddress(), s.getLocalPort());
                                                     DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMdr().getAddress(), Server.getServer().getMdr().getPort());
                                                     byte[] file_content;
@@ -162,7 +137,6 @@ public class Handler implements Runnable {
                                                     n_s.getOutputStream().write(file_content);
                                                     n_s.close();
                                                 } catch (IOException e) {
-                                                    e.printStackTrace();
                                                 }
                                             }
                                             Server.getServer().getChunkQueue().remove(header.getFileID() + header.getChunkNo());
@@ -235,7 +209,7 @@ public class Handler implements Runnable {
                 }
                 case CHUNK -> {
                     Server.getServer().getChunkQueue().put(header.getFileID() + header.getChunkNo(), true);
-                    if (!(Server.getServer().getFileRestoring() == null)) {
+                    if (Server.getServer().getFileRestoring() != null && Server.getServer().getFileRestoring().get(header.getFileID()) != null) {
                         switch (header.getVersion()) {
                             case "1.0" -> {
                                 processChunk(header, body.length, body);
@@ -253,7 +227,6 @@ public class Handler implements Runnable {
                                         alloc = new byte[read];
                                         System.arraycopy(tmp_buffer, 0, alloc, 0, read);
                                     } catch (IOException e) {
-                                        e.printStackTrace();
                                         break;
                                     }
                                     processChunk(header, read, alloc);
@@ -265,6 +238,59 @@ public class Handler implements Runnable {
                 default -> {
                 }
             }
+        }
+    }
+
+    private void putchunkAnswer(byte[] body, Header header) {
+        time = System.currentTimeMillis();
+
+        if (Server.getServer().getMyFiles().containsKey(header.getFileID())) {
+            return;
+        }
+
+        standbyBackupList.remove(header.getFileID() + header.getChunkNo());
+
+        byte m[] = MessageType.createStored(header.getVersion(), this.peerId, header.getFileID(), header.getChunkNo());
+        DatagramPacket packet = new DatagramPacket(m, m.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+        if (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get()) {
+            if (!Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
+                try {
+                    Files.createDirectories(Paths.get(Server.getServer().getServerName() + "/" + header.getFileID()));
+                } catch (IOException e) {
+                    System.exit(1);
+                }
+                Server.getServer().getStoredFiles().put(header.getFileID(), new RemoteFile(header.getFileID()));
+            }
+            if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
+                Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
+                c.getPeerList().put(peerId, true);
+                c.update("rdata");
+                c.getPeerList().put((int) Server.getServer().getPeerId(), true);
+
+                Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), c);
+
+                Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                AsynchronousFileChannel fileChannel = null;
+                try {
+                    fileChannel = AsynchronousFileChannel.open(
+                            path, WRITE, CREATE);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                ByteBuffer buffer = ByteBuffer.allocate(body.length);
+
+                buffer.put(body);
+                buffer.flip();
+
+                fileChannel.write(buffer, 0);
+                buffer.clear();
+                Server.getServer().getCurrentSize().addAndGet(body.length);
+            }
+
+        }
+        if (Server.getServer().getStoredFiles().containsKey(header.getFileID()) && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
+            Server.getServer().getPool().schedule(() -> Server.getServer().getMc().send(packet), new Random().nextInt(401), TimeUnit.MILLISECONDS);
         }
     }
 

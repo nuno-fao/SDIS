@@ -3,16 +3,12 @@ package sdis.server;
 import sdis.Server;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -26,10 +22,6 @@ public class Chunk {
     private ConcurrentHashMap<Integer, Boolean> peerCount = null;
     private AtomicBoolean shallSend = new AtomicBoolean(true);
     private int size = 0;
-
-    public int getRealDegree() {
-        return realDegree;
-    }
 
     public Chunk(int chunkNo, String fileId, int repDegree) {
 
@@ -53,6 +45,10 @@ public class Chunk {
         this.repDegree = repDegree;
         this.realDegree = realDegree;
         this.size = size;
+    }
+
+    public int getRealDegree() {
+        return realDegree;
     }
 
     public int getSize() {
@@ -85,11 +81,17 @@ public class Chunk {
         return this.realDegree;
     }
 
-
     public int getRepDegree() {
         return this.repDegree;
     }
 
+    void setRepDegree(int repDegree) {
+        this.repDegree = repDegree;
+    }
+
+    public boolean repDegSmallerThanRealDegree() {
+        return repDegree < getPeerCount();
+    }
 
     synchronized void update(String folder) {
         Path path = Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo);
