@@ -50,6 +50,7 @@ public class HeaderConcrete implements Header {
                 argsList = getSubArray(argsList, lIndex);
                 outList.add(localHeader);
             } catch (Exception | ParseError e) {
+                return new ArrayList<>();
             }
 
         }

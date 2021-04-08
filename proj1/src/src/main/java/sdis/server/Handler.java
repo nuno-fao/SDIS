@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,8 +79,16 @@ public class Handler implements Runnable {
                             Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).setRepDegree(header.getReplicationDeg());
                         } catch (Exception e) {
                         }
-                        byte[] finalBody = body;
-                        Server.getServer().getPool().schedule(() -> {
+                        if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
+                            Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
+                            c.getPeerList().put(peerId, true);
+                            c.updateRdata();
+                            c.getPeerList().put((int) Server.getServer().getPeerId(), true);
+
+                            Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), c);
+
+                            Path path = Paths.get(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
+                            AsynchronousFileChannel fileChannel = null;
                             try {
                                 if (Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo()).repDegSmallerThanRealDegree()) {
                                     putchunkAnswer(finalBody, header);
@@ -149,10 +158,50 @@ public class Handler implements Runnable {
                     }
                 }
                 case DELETE -> {
+
                     if (Server.getServer().getStoredFiles().containsKey(header.getFileID())) {
                         RemoteFile f = Server.getServer().getStoredFiles().get(header.getFileID());
                         Server.getServer().getStoredFiles().remove(header.getFileID());
                         f.delete();
+
+                        if(Server.getServer().getVersion().equals("1.1")){
+                            byte message[] = MessageType.createPurged("1.1", this.peerId, f.getFileId());
+                            DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                            this.sendMessage(0,Server.getServer().getPool(), packet);
+                        }
+                    }
+
+
+                }
+                case PURGED -> {
+                    if(Server.getServer().getWaitingForPurge().containsKey(header.getFileID())){
+                        Server.getServer().getWaitingForPurge().get(header.getFileID()).removePeerFromChunks(header.getSenderID());
+                        Server.getServer().getWaitingForPurge().get(header.getFileID()).updateChunks();
+
+                        if(Server.getServer().getWaitingForPurge().get(header.getFileID()).getChunks().size()==0){
+                            Server.getServer().getWaitingForPurge().remove(header.getFileID());
+                            Server.getServer().getMyFiles().remove(header.getFileID());
+
+                            try {
+                                Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + header.getFileID()))
+                                        .sorted(Comparator.reverseOrder())
+                                        .map(Path::toFile)
+                                        .forEach(java.io.File::delete);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+
+                }
+                case AWAKE -> {
+                    System.out.println("PEER "+header.getSenderID()+" AWOKE");
+                    for(File file:Server.getServer().getWaitingForPurge().values()){
+                        if(file.peerHasChunks(header.getSenderID())){
+                            byte message[] = MessageType.createDelete("1.1",  this.peerId, file.getFileId());
+                            DatagramPacket packet = new DatagramPacket(message, message.length, Server.getServer().getMc().getAddress(), Server.getServer().getMc().getPort());
+                            this.sendMessage(0,Server.getServer().getPool(), packet);
+                        }
                     }
                 }
                 case REMOVED -> {
@@ -173,12 +222,12 @@ public class Handler implements Runnable {
                         if (!isLocalCopy) {
                             if (chunk.getPeerList().containsKey(header.getSenderID())) {
                                 chunk.getPeerList().remove(header.getSenderID());
-                                chunk.update("ldata");
+                                chunk.updateLdata(Server.getServer().getMyFiles().get(header.getFileID()).getName());
                                 return;
                             }
                         } else if (chunk.getPeerList().containsKey(header.getSenderID())) {
                             chunk.getPeerList().remove(header.getSenderID());
-                            chunk.update("rdata");
+                            chunk.updateRdata();
                         }
                         if (chunk.getRealDegree() < chunk.getRepDegree()) {
                             Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
@@ -352,4 +401,14 @@ public class Handler implements Runnable {
             }
         }, i * 1000L + new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
+
+    private void sendMessage(int i, ScheduledExecutorService pool, DatagramPacket packet) {
+        Server.getServer().getMc().send(packet);
+        pool.schedule(() -> {
+            if (i < 5) {
+                this.sendMessage(i + 1, pool, packet);
+            }
+        }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
+    }
+
 }
