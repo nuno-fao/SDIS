@@ -146,7 +146,7 @@ public class File {
 
     public void updateChunks(){
         for(Chunk chunk:chunks.values()){
-            chunk.update("ldata");
+            chunk.updateLdata(this.name);
         }
     }
 

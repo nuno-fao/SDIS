@@ -90,7 +90,7 @@ public class Handler implements Runnable {
                         if (!Server.getServer().getStoredFiles().get(header.getFileID()).chunks.containsKey(header.getChunkNo())) {
                             Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
                             c.getPeerList().put(peerId, true);
-                            c.update("rdata");
+                            c.updateRdata();
                             c.getPeerList().put((int) Server.getServer().getPeerId(), true);
 
                             Server.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), c);
@@ -193,22 +193,24 @@ public class Handler implements Runnable {
                 }
                 case PURGED -> {
                     if(Server.getServer().getWaitingForPurge().containsKey(header.getFileID())){
-                        Server.getServer().getWaitingForPurge().get(header.getFileID()).removePeerFromChunks(peerId);
+                        Server.getServer().getWaitingForPurge().get(header.getFileID()).removePeerFromChunks(header.getSenderID());
                         Server.getServer().getWaitingForPurge().get(header.getFileID()).updateChunks();
-                    }
-                    if(Server.getServer().getWaitingForPurge().get(header.getFileID()).getChunks().size()==0){
-                        Server.getServer().getWaitingForPurge().remove(header.getFileID());
-                        Server.getServer().getMyFiles().remove(header.getFileID());
 
-                        try {
-                            Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + header.getFileID()))
-                                    .sorted(Comparator.reverseOrder())
-                                    .map(Path::toFile)
-                                    .forEach(java.io.File::delete);
-                        } catch (IOException e) {
-                            e.printStackTrace();
+                        if(Server.getServer().getWaitingForPurge().get(header.getFileID()).getChunks().size()==0){
+                            Server.getServer().getWaitingForPurge().remove(header.getFileID());
+                            Server.getServer().getMyFiles().remove(header.getFileID());
+
+                            try {
+                                Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + header.getFileID()))
+                                        .sorted(Comparator.reverseOrder())
+                                        .map(Path::toFile)
+                                        .forEach(java.io.File::delete);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
+
                 }
                 case AWAKE -> {
                     System.out.println("PEER "+header.getSenderID()+" AWOKE");
@@ -238,12 +240,12 @@ public class Handler implements Runnable {
                         if (!isLocalCopy) {
                             if (chunk.getPeerList().containsKey(header.getSenderID())) {
                                 chunk.getPeerList().remove(header.getSenderID());
-                                chunk.update("ldata");
+                                chunk.updateLdata(Server.getServer().getMyFiles().get(header.getFileID()).getName());
                                 return;
                             }
                         } else if (chunk.getPeerList().containsKey(header.getSenderID())) {
                             chunk.getPeerList().remove(header.getSenderID());
-                            chunk.update("rdata");
+                            chunk.updateRdata();
                         }
                         if (chunk.getRealDegree() < chunk.getRepDegree()) {
                             Path name = Path.of(Server.getServer().getServerName() + "/" + header.getFileID() + "/" + header.getChunkNo());
