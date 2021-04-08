@@ -276,106 +276,28 @@ public class Handler implements Runnable {
                 }
                 case CHUNK -> {
                     Server.getServer().getChunkQueue().put(header.getFileID() + header.getChunkNo(), true);
-                    switch (header.getVersion()) {
-                        case "1.0" -> {
-                            if (Server.getServer().getFileRestoring().containsKey(header.getFileID())) {
-                                if (!Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
-                                    Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().put(header.getChunkNo(), body);
-                                    System.out.println(header.getChunkNo());
-                                }
-
-                                if (Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() == null && body.length < Server.getServer().getChunkSize()) {
-                                    Server.getServer().getFileRestoring().get(header.getFileID()).setNumberOfChunks(header.getChunkNo() + 1);
-                                    System.out.println("chunk final");
-                                }
-
-                                if (Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null && Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()) {
-                                    RestoreFile f = Server.getServer().getFileRestoring().get(header.getFileID());
-                                    Server.getServer().getFileRestoring().remove(header.getFileID());
-                                    String folder = Server.getServer().getServerName() + "/" + "restored";
-                                    System.out.println("Finito");
-                                    if (!Files.exists(Path.of(folder))) {
-                                        try {
-                                            Files.createDirectories(Path.of(folder));
-                                        } catch (IOException e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                    Path path = Paths.get(folder + "/" + Server.getServer().getMyFiles().get(header.getFileID()).getName());
-                                    AsynchronousFileChannel fileChannel = null;
-                                    try {
-                                        fileChannel = AsynchronousFileChannel.open(
-                                                path, WRITE, CREATE);
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-
-                                    for (int iterator = 0; iterator < f.getChunks().size(); iterator++) {
-                                        ByteBuffer buffer = ByteBuffer.allocate(f.getChunks().get(iterator).length);
-
-                                        buffer.put(f.getChunks().get(iterator));
-                                        buffer.flip();
-
-                                        fileChannel.write(buffer, iterator * Server.getServer().getChunkSize());
-                                        buffer.clear();
-                                    }
-                                }
+                    if (!(Server.getServer().getFileRestoring() == null)) {
+                        switch (header.getVersion()) {
+                            case "1.0" -> {
+                                processChunk(header, body.length, body);
                             }
-                        }
-                        case "1.1" -> {
-                            if (Server.getServer().getFileRestoring().containsKey(header.getFileID())) {
-                                int read;
-                                byte alloc[];
-                                try {
-                                    byte[] tmp_buffer = new byte[64000];
-                                    Socket s = new Socket(header.getAddress(), header.getPort());
-                                    DataInputStream in = new DataInputStream(new BufferedInputStream(s.getInputStream()));
-                                    read = in.read(tmp_buffer);
-                                    System.out.println("MY read: " + header.getChunkNo() + " " + header.getPort() + " " + read);
-                                    alloc = new byte[read];
-                                    System.arraycopy(tmp_buffer, 0, alloc, 0, read);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                    break;
-                                }
-
-                                if (!Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
-                                    Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().put(header.getChunkNo(), alloc);
-                                }
-
-                                if (Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() == null && read < Server.getServer().getChunkSize()) {
-                                    Server.getServer().getFileRestoring().get(header.getFileID()).setNumberOfChunks(header.getChunkNo() + 1);
-                                }
-
-                                if (Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null && Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()) {
-                                    RestoreFile f = Server.getServer().getFileRestoring().get(header.getFileID());
-                                    Server.getServer().getFileRestoring().remove(header.getFileID());
-                                    String folder = Server.getServer().getServerName() + "/" + "restored";
-                                    if (!Files.exists(Path.of(folder))) {
-                                        try {
-                                            Files.createDirectories(Path.of(folder));
-                                        } catch (IOException e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                    Path path = Paths.get(folder + "/" + Server.getServer().getMyFiles().get(header.getFileID()).getName());
-                                    AsynchronousFileChannel fileChannel = null;
+                            case "1.1" -> {
+                                if (Server.getServer().getFileRestoring().containsKey(header.getFileID())) {
+                                    int read;
+                                    byte alloc[];
                                     try {
-                                        fileChannel = AsynchronousFileChannel.open(
-                                                path, WRITE, CREATE);
+                                        byte[] tmp_buffer = new byte[64000];
+                                        Socket s = new Socket(header.getAddress(), header.getPort());
+                                        DataInputStream in = new DataInputStream(new BufferedInputStream(s.getInputStream()));
+                                        read = in.read(tmp_buffer);
+                                        System.out.println("MY read: " + header.getChunkNo() + " " + header.getPort() + " " + read);
+                                        alloc = new byte[read];
+                                        System.arraycopy(tmp_buffer, 0, alloc, 0, read);
                                     } catch (IOException e) {
                                         e.printStackTrace();
+                                        break;
                                     }
-
-                                    for (int iterator = 0; iterator < f.getChunks().size(); iterator++) {
-                                        ByteBuffer buffer = ByteBuffer.allocate(f.getChunks().get(iterator).length);
-
-                                        buffer.put(f.getChunks().get(iterator));
-                                        buffer.flip();
-
-                                        fileChannel.write(buffer, iterator * Server.getServer().getChunkSize());
-                                        buffer.clear();
-                                    }
+                                    processChunk(header, read, alloc);
                                 }
                             }
                         }
@@ -383,6 +305,47 @@ public class Handler implements Runnable {
                 }
                 default -> {
                 }
+            }
+        }
+    }
+
+    private void processChunk(Header header, int buffer_length, byte[] buffer) {
+        if (!Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
+            Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().put(header.getChunkNo(), buffer);
+        }
+
+        if (Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() == null && buffer_length < Server.getServer().getChunkSize()) {
+            Server.getServer().getFileRestoring().get(header.getFileID()).setNumberOfChunks(header.getChunkNo() + 1);
+        }
+
+        if (Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null && Server.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Server.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()) {
+            RestoreFile f = Server.getServer().getFileRestoring().get(header.getFileID());
+            Server.getServer().getFileRestoring().remove(header.getFileID());
+            String folder = Server.getServer().getServerName() + "/" + "restored";
+            if (!Files.exists(Path.of(folder))) {
+                try {
+                    Files.createDirectories(Path.of(folder));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            Path path = Paths.get(folder + "/" + Server.getServer().getMyFiles().get(header.getFileID()).getName());
+            AsynchronousFileChannel fileChannel = null;
+            try {
+                fileChannel = AsynchronousFileChannel.open(
+                        path, WRITE, CREATE);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            for (int iterator = 0; iterator < f.getChunks().size(); iterator++) {
+                ByteBuffer l_buffer = ByteBuffer.allocate(f.getChunks().get(iterator).length);
+
+                l_buffer.put(f.getChunks().get(iterator));
+                l_buffer.flip();
+
+                fileChannel.write(l_buffer, iterator * Server.getServer().getChunkSize());
+                l_buffer.clear();
             }
         }
     }
