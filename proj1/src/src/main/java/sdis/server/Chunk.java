@@ -12,7 +12,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.WRITE;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 
 public class Chunk {
     private int repDegree = 0;
@@ -89,7 +89,7 @@ public class Chunk {
         this.repDegree = repDegree;
     }
 
-    public boolean repDegSmallerThanRealDegree() {
+    boolean repDegSmallerThanRealDegree() {
         return repDegree < getPeerCount();
     }
 
@@ -98,7 +98,7 @@ public class Chunk {
         AsynchronousFileChannel fileChannel = null;
         try {
             fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, CREATE);
+                    path, TRUNCATE_EXISTING, CREATE);
         } catch (IOException e) {
             e.printStackTrace();
         }
