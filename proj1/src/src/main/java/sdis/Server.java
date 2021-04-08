@@ -286,6 +286,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                         deleteFile(file.getFileId());
                     }
                 }
+                if(waitingForPurge.containsKey(File.getFileInfo(filename))){
+                    Files.delete(Path.of(Server.getServer().getServerName() + "/.ldata/" +f.getFileId()+"/PURGING"));
+                    waitingForPurge.remove(File.getFileInfo(filename));
+                }
                 this.myFiles.put(f.getFileId(), f);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -446,6 +450,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                 byte message[] = MessageType.createDelete("1.1", (int) this.peerId, fileId);
                 DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
                 waitingForPurge.put(fileId, this.myFiles.get(fileId));
+                this.myFiles.remove(fileId);
                 this.deleteAux(0, this.pool, packet);
                 return true;
             }

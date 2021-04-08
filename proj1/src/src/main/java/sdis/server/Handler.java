@@ -198,7 +198,6 @@ public class Handler implements Runnable {
 
                         if(Server.getServer().getWaitingForPurge().get(header.getFileID()).getChunks().size()==0){
                             Server.getServer().getWaitingForPurge().remove(header.getFileID());
-                            Server.getServer().getMyFiles().remove(header.getFileID());
 
                             try {
                                 Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + header.getFileID()))
