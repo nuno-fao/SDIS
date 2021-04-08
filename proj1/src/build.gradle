@@ -51,7 +51,7 @@ task clientR3(type: JavaExec) {
 task clientRCL2(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint2", "RECLAIM", "64000"
+    args "accesspoint4", "RECLAIM", "72000"
 }
 
 task clientB1(type: JavaExec) {
