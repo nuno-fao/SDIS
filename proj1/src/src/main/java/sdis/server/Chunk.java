@@ -55,6 +55,10 @@ public class Chunk {
         return size;
     }
 
+    public void setSize(int size) {
+        this.size = size;
+    }
+
     public String getFileId() {
         return this.fileId;
     }

@@ -297,10 +297,8 @@ public class Handler implements Runnable {
         }
         boolean hasSpace = (Server.getServer().getMaxSize().get() == -1 || Server.getServer().getCurrentSize().get() + body.length <= Server.getServer().getMaxSize().get());
         boolean hasFile = Server.getServer().getStoredFiles().containsKey(header.getFileID());
-        boolean hasStored = (hasFile && Server.getServer().getStoredFiles().get(header.getFileID()).getChunks().containsKey(header.getChunkNo()));
 
         standbyBackupList.remove(header.getFileID() + header.getChunkNo());
-
 
         if (hasSpace) {
             if (!hasFile) {
@@ -315,6 +313,7 @@ public class Handler implements Runnable {
                 Chunk c;
                 if (Server.getServer().getWaitingForPutchunk().containsKey(header.getFileID())) {
                     c = Server.getServer().getWaitingForPutchunk().get(header.getFileID()).chunks.get(header.getChunkNo());
+                    c.setSize(body.length);
                 } else {
                     c = new Chunk(header.getChunkNo(), header.getFileID(), header.getReplicationDeg(), body.length);
                 }

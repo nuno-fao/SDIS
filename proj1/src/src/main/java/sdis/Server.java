@@ -479,12 +479,9 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
 
         maxSize.set(maxSpace);
 
-        //System.out.println("MAX SIZE "+maxSize.get());
-        //System.out.println("CURRENT SIZE "+currentSize.get());
 
         if (currentSize.get() > maxSpace) {
 
-            //System.out.println("ENTREI PARA LIMPAR");
 
             List<Chunk> cleanable = new ArrayList<>();
             for (RemoteFile file : this.storedFiles.values()) {
@@ -498,20 +495,18 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             });
 
             for (Chunk chunk : cleanable) {
+                System.out.println(storedFiles.get(chunk.getFileId()).getChunks().size() + " " + chunk.getFileId() + " " + chunk.getSize());
+                System.out.println(currentSize.get());
                 if (storedFiles.get(chunk.getFileId()).deleteChunk(chunk.getChunkNo())) {
-
-                    //System.out.println("REMOVING CHUNK "+chunk.getChunkNo()+" "+chunk.getSize());
                     currentSize.addAndGet(-chunk.getSize());
-
                     byte message[] = MessageType.createRemoved("1.0", (int) this.peerId, chunk.getFileId(), chunk.getChunkNo());
                     DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
                     this.mc.send(packet);
-                    //System.out.println("CURRENT SIZE BEFORE BREAK");
+
                     if (currentSize.get() <= maxSize.get()) {
                         break;
                     }
                 }
-
             }
         }
 
