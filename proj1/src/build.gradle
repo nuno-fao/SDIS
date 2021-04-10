@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'sdis'
-version '1.0-SNAPSHOT'
+version '1.1-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -51,7 +51,7 @@ task clientR3(type: JavaExec) {
 task clientRCL2(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint2", "RECLAIM", "64000"
+    args "accesspoint4", "RECLAIM", "72000"
 }
 
 task clientB1(type: JavaExec) {
@@ -69,13 +69,19 @@ task clientB2(type: JavaExec) {
 task clientB3(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint1", "BACKUP", "testfile1b.png", "2"
+    args "accesspoint1", "BACKUP", "testfile1b.png", "3"
 }
 
 task clientB4(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = "sdis.Client"
-    args "accesspoint1", "BACKUP", "testfile1c.txt", "2"
+    args "accesspoint1", "BACKUP", "testfile1c.txt", "1"
+}
+
+task clientB5(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Client"
+    args "accesspoint1", "BACKUP", "testfile.txt", "2"
 }
 
 
@@ -145,4 +151,32 @@ task server5(type: JavaExec) {
     args "1.1", "5", "accesspoint5", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
 }
 
+task server6(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1", "6", "accesspoint6", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+}
 
+task server7(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1", "7", "accesspoint7", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+}
+
+task server8(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1", "8", "accesspoint8", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+}
+
+task server9(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1", "9", "accesspoint9", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+}
+
+task server10(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = "sdis.Server"
+    args "1.1", "10", "accesspoint10", "224.0.0.1", "4446", "224.0.0.2", "4007", "224.0.0.3", "4008"
+}

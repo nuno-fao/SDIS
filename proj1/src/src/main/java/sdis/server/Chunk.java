@@ -7,12 +7,12 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.WRITE;
+import static java.nio.file.StandardOpenOption.*;
 
 public class Chunk {
     private int repDegree = 0;
@@ -22,10 +22,6 @@ public class Chunk {
     private ConcurrentHashMap<Integer, Boolean> peerCount = null;
     private AtomicBoolean shallSend = new AtomicBoolean(true);
     private int size = 0;
-
-    public int getRealDegree() {
-        return realDegree;
-    }
 
     public Chunk(int chunkNo, String fileId, int repDegree) {
 
@@ -49,6 +45,10 @@ public class Chunk {
         this.repDegree = repDegree;
         this.realDegree = realDegree;
         this.size = size;
+    }
+
+    public int getRealDegree() {
+        return realDegree;
     }
 
     public int getSize() {
@@ -81,18 +81,24 @@ public class Chunk {
         return this.realDegree;
     }
 
-
     public int getRepDegree() {
         return this.repDegree;
     }
 
+    void setRepDegree(int repDegree) {
+        this.repDegree = repDegree;
+    }
 
-    synchronized void update(String folder) {
-        Path path = Paths.get(Server.getServer().getServerName() + "/." + folder + "/" + this.fileId + "/" + this.chunkNo);
+    boolean repDegSmallerThanRealDegree() {
+        return repDegree < getPeerCount();
+    }
+
+    synchronized void updateRdata() {
+        Path path = Paths.get(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + this.chunkNo);
         AsynchronousFileChannel fileChannel = null;
         try {
             fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, CREATE);
+                    path, WRITE, TRUNCATE_EXISTING, CREATE);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -106,4 +112,33 @@ public class Chunk {
         Future<Integer> operation = fileChannel.write(buffer, 0);
         buffer.clear();
     }
+
+    synchronized void updateLdata(String filename) {
+        Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + this.chunkNo);
+        AsynchronousFileChannel fileChannel = null;
+        try {
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, TRUNCATE_EXISTING, CREATE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append((getPeerCount() + ";" + getRepDegree() + ";" + filename + "\n"));
+        for (Iterator<Integer> it = getPeerList().keys().asIterator(); it.hasNext(); ) {
+            sb.append(it.next() + ";");
+        }
+
+        byte out[] = sb.toString().getBytes();
+
+        ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+        buffer.put(out);
+        buffer.flip();
+
+        Future<Integer> operation = fileChannel.write(buffer, 0);
+        buffer.clear();
+    }
+
+
 }

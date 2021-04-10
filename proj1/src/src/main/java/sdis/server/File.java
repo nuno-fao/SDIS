@@ -30,7 +30,6 @@ public class File {
     private ConcurrentHashMap<Integer, Chunk> chunks = new ConcurrentHashMap<>();
     private int numChunks = -1;
     private long time;
-    private ConcurrentHashMap<Integer, Boolean> a = new ConcurrentHashMap<>();
 
     public File(String name, int repDegree) throws IOException {
         this.name = name;
@@ -103,12 +102,6 @@ public class File {
 
     void addStored(int chunkNo, int peerId) {
         if (this.chunks.containsKey(chunkNo)) {
-            if (!a.containsKey(chunkNo)) {
-                s.getAndIncrement();
-                if (numChunks == s.get()) {
-                    System.out.println(System.currentTimeMillis() - time);
-                }
-            }
             Chunk c = this.chunks.get(chunkNo);
             if (!c.getPeerList().containsKey(peerId)) {
                 c.getPeerList().put(peerId, true);
@@ -138,6 +131,32 @@ public class File {
                 buffer.clear();
             }
         }
+    }
+
+    public void removePeerFromChunks(int peerId){
+        for(Chunk chunk:chunks.values()){
+            if (chunk.getPeerList().containsKey(peerId)) {
+                chunk.getPeerList().remove(peerId);
+                if(chunk.getPeerList().size()==0){
+                    chunks.remove(chunk.getChunkNo());
+                }
+            }
+        }
+    }
+
+    public void updateChunks(){
+        for(Chunk chunk:chunks.values()){
+            chunk.updateLdata(this.name);
+        }
+    }
+
+    public boolean peerHasChunks(int peerId){
+        for(Chunk chunk:chunks.values()){
+            if(chunk.getPeerList().containsKey(peerId)){
+                return true;
+            }
+        }
+        return false;
     }
 
     public Integer getReplicationDegree(int chunkNo) {

@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.net.MalformedURLException;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,13 +19,13 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
+
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 
 public class Server extends UnicastRemoteObject implements RemoteInterface {
@@ -45,6 +47,8 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
     private AtomicLong maxSize = new AtomicLong(-1);
     private AtomicLong currentSize = new AtomicLong(0);
     private ConcurrentHashMap<String, Boolean> chunkQueue = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, RemoteFile> waitingForPutchunk = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, File> waitingForPurge = new ConcurrentHashMap<>();
 
     private Server(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
         super(0);
@@ -70,7 +74,7 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         new Thread(this.mdb).start();
         new Thread(this.mdr).start();
 
-
+        sendAwake();
     }
 
     static Server createServer(String version, long peerId, String accessPoint, Address mc, Address mdb, Address mdr) throws RemoteException {
@@ -93,6 +97,21 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
             throw new Exception("invalid parameter " + args[1] + ", should be a valid number");
         }
         createServer(args[0], Integer.parseInt(args[1]), args[2], new Address(args[3], Integer.parseInt(args[4])), new Address(args[5], Integer.parseInt(args[6])), new Address(args[7], Integer.parseInt(args[8]))).startRemoteObject();
+
+    }
+
+    private void sendAwake() {
+        System.out.println("SENDING AWAKE");
+        if (this.version.equals("1.1")) {
+            byte message[] = MessageType.createAwake("1.1", (int) this.peerId);
+            DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+            System.out.println(this.mc.getAddress());
+            this.pool.schedule(() -> this.mc.send(packet), 3, TimeUnit.SECONDS);
+        }
+    }
+
+    public ConcurrentHashMap<String, RemoteFile> getWaitingForPutchunk() {
+        return waitingForPutchunk;
     }
 
     public ConcurrentHashMap<String, Boolean> getChunkQueue() {
@@ -143,6 +162,9 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                             continue;
                         }
                         this.myFiles.put(f.getFileId(), f);
+                        if (Files.exists(Path.of(Server.getServer().getServerName() + "/.ldata/" + f.getFileId() + "/PURGING"))) {
+                            this.waitingForPurge.put(f.getFileId(), f);
+                        }
                     }
                 }
             }
@@ -226,6 +248,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         return this.version;
     }
 
+    public ConcurrentHashMap<String, File> getWaitingForPurge() {
+        return waitingForPurge;
+    }
+
     private void startRemoteObject() {
         try {
             LocateRegistry.createRegistry(1099);
@@ -264,6 +290,10 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
                     if (filename.compareTo(file.getName()) == 0) {
                         deleteFile(file.getFileId());
                     }
+                }
+                if (waitingForPurge.containsKey(File.getFileInfo(filename))) {
+                    Files.delete(Path.of(Server.getServer().getServerName() + "/.ldata/" + f.getFileId() + "/PURGING"));
+                    waitingForPurge.remove(File.getFileInfo(filename));
                 }
                 this.myFiles.put(f.getFileId(), f);
             } catch (IOException e) {
@@ -385,20 +415,53 @@ public class Server extends UnicastRemoteObject implements RemoteInterface {
         return true;
     }
 
+
     private boolean deleteFile(String fileId) {
-        byte message[] = MessageType.createDelete("1.0", (int) this.peerId, fileId);
-        DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-        try {
-            Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + fileId))
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(java.io.File::delete);
-        } catch (IOException e) {
+        if (this.version.equals("1.0")) {
+            byte message[] = MessageType.createDelete("1.0", (int) this.peerId, fileId);
+            DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+            try {
+                Files.walk(Path.of(Server.getServer().getServerName() + "/.ldata/" + fileId))
+                        .sorted(Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(java.io.File::delete);
+            } catch (IOException e) {
+                return false;
+            }
+            this.deleteAux(0, this.pool, packet);
+            this.myFiles.remove(fileId);
+            return true;
+        } else if (this.version.equals("1.1")) {
+            if (this.myFiles.containsKey(fileId)) {
+
+                Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + fileId + "/PURGING");
+                AsynchronousFileChannel fileChannel = null;
+                try {
+                    fileChannel = AsynchronousFileChannel.open(
+                            path, WRITE, CREATE);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                byte out[] = "".getBytes();
+                ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+                buffer.put(out);
+                buffer.flip();
+
+                Future<Integer> operation = fileChannel.write(buffer, 0);
+                buffer.clear();
+
+                byte message[] = MessageType.createDelete("1.1", (int) this.peerId, fileId);
+                DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
+                waitingForPurge.put(fileId, this.myFiles.get(fileId));
+                this.myFiles.remove(fileId);
+                this.deleteAux(0, this.pool, packet);
+                return true;
+            }
             return false;
         }
-        this.deleteAux(0, this.pool, packet);
-        this.myFiles.remove(fileId);
-        return true;
+        return false;
     }
 
     private void deleteAux(int i, ScheduledExecutorService pool, DatagramPacket packet) {
