@@ -299,7 +299,6 @@ public class Handler implements Runnable {
         boolean hasFile = Server.getServer().getStoredFiles().containsKey(header.getFileID());
 
         standbyBackupList.remove(header.getFileID() + header.getChunkNo());
-
         if (hasSpace) {
             if (!hasFile) {
                 try {
