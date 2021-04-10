@@ -55,6 +55,10 @@ public class Chunk {
         return size;
     }
 
+    void setSize(int size) {
+        this.size = size;
+    }
+
     public String getFileId() {
         return this.fileId;
     }
@@ -94,51 +98,53 @@ public class Chunk {
     }
 
     synchronized void updateRdata() {
-        Path path = Paths.get(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + this.chunkNo);
-        AsynchronousFileChannel fileChannel = null;
-        try {
-            fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, TRUNCATE_EXISTING, CREATE);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (realDegree != -1) {
+            Path path = Paths.get(Server.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + this.chunkNo);
+            AsynchronousFileChannel fileChannel = null;
+            try {
+                fileChannel = AsynchronousFileChannel.open(
+                        path, WRITE, TRUNCATE_EXISTING, CREATE);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            byte out[] = (this.getPeerCount() + ";" + this.repDegree + ";" + size).getBytes();
+            ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+            buffer.put(out);
+            buffer.flip();
+
+            Future<Integer> operation = fileChannel.write(buffer, 0);
+            buffer.clear();
         }
-
-        byte out[] = (this.getPeerCount() + ";" + this.repDegree + ";" + size).getBytes();
-        ByteBuffer buffer = ByteBuffer.allocate(out.length);
-
-        buffer.put(out);
-        buffer.flip();
-
-        Future<Integer> operation = fileChannel.write(buffer, 0);
-        buffer.clear();
     }
 
     synchronized void updateLdata(String filename) {
-        Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + this.chunkNo);
-        AsynchronousFileChannel fileChannel = null;
-        try {
-            fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, TRUNCATE_EXISTING, CREATE);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (realDegree != -1) {
+            Path path = Paths.get(Server.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + this.chunkNo);
+            AsynchronousFileChannel fileChannel = null;
+            try {
+                fileChannel = AsynchronousFileChannel.open(
+                        path, WRITE, TRUNCATE_EXISTING, CREATE);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append((getPeerCount() + ";" + getRepDegree() + ";" + filename + "\n"));
+            for (Iterator<Integer> it = getPeerList().keys().asIterator(); it.hasNext(); ) {
+                sb.append(it.next() + ";");
+            }
+
+            byte out[] = sb.toString().getBytes();
+
+            ByteBuffer buffer = ByteBuffer.allocate(out.length);
+
+            buffer.put(out);
+            buffer.flip();
+
+            Future<Integer> operation = fileChannel.write(buffer, 0);
+            buffer.clear();
         }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append((getPeerCount() + ";" + getRepDegree() + ";" + filename + "\n"));
-        for (Iterator<Integer> it = getPeerList().keys().asIterator(); it.hasNext(); ) {
-            sb.append(it.next() + ";");
-        }
-
-        byte out[] = sb.toString().getBytes();
-
-        ByteBuffer buffer = ByteBuffer.allocate(out.length);
-
-        buffer.put(out);
-        buffer.flip();
-
-        Future<Integer> operation = fileChannel.write(buffer, 0);
-        buffer.clear();
     }
-
-
 }
