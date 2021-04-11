@@ -117,6 +117,7 @@ public class Handler implements Runnable {
                         }
                         else{
                             Chunk c = new Chunk(header.getChunkNo(), header.getFileID(), -1);
+                            c.getPeerList().put(header.getSenderID(),true);
                             Peer.getServer().getWaitingForPutchunk().put(header.getFileID()+header.getChunkNo(), c);
                         }
                     }
@@ -334,7 +335,7 @@ public class Handler implements Runnable {
                 }
 
                 Chunk c;
-                if (Peer.getServer().getWaitingForPutchunk().containsKey(header.getFileID())) {
+                if (Peer.getServer().getWaitingForPutchunk().containsKey(header.getFileID()+header.getChunkNo())) {
                     c = Peer.getServer().getWaitingForPutchunk().get(header.getFileID()+header.getChunkNo());
                     c.setSize(body.length);
                 } else {
@@ -342,7 +343,6 @@ public class Handler implements Runnable {
                 }
                 c.getPeerList().put(peerId, true);
                 c.updateRdata();
-                c.getPeerList().put((int) Peer.getServer().getPeerId(), true);
 
                 Peer.getServer().getStoredFiles().get(header.getFileID()).chunks.put(header.getChunkNo(), c);
 
@@ -417,20 +417,20 @@ public class Handler implements Runnable {
             }
             String[] a = Peer.getServer().getMyFiles().get(header.getFileID()).getName().split("/");
             Path path = Paths.get(folder + "/" + a[a.length-1]);
-            AsynchronousFileChannel fileChannel = null;
-            try {
-                fileChannel = AsynchronousFileChannel.open(
-                        path, WRITE, CREATE);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+           
 
             for (int iterator = 0; iterator < f.getChunks().size(); iterator++) {
                 ByteBuffer l_buffer = ByteBuffer.allocate(f.getChunks().get(iterator).length);
 
                 l_buffer.put(f.getChunks().get(iterator));
                 l_buffer.flip();
-
+                AsynchronousFileChannel fileChannel = null;
+                try {
+                    fileChannel = AsynchronousFileChannel.open(
+                            path, WRITE, CREATE);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 fileChannel.write(l_buffer, iterator * Peer.getServer().getChunkSize(), fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
                     @Override
                     public void completed(Integer result, AsynchronousFileChannel attachment) {

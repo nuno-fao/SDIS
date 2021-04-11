@@ -147,7 +147,7 @@ public class Chunk {
      * @return true if the perceived degree is lower than the desired degree
      */
     boolean shallSend() {
-        return getPeerList().size() < repDegree - 1;
+        return getPeerList().size() < repDegree;
     }
 
     /**
