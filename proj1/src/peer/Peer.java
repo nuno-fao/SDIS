@@ -659,8 +659,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             });
 
             for (Chunk chunk : cleanable) {
-                System.out.println(storedFiles.get(chunk.getFileId()).getChunks().size() + " " + chunk.getFileId() + " " + chunk.getSize());
-                System.out.println(currentSize.get());
                 if (storedFiles.get(chunk.getFileId()).deleteChunk(chunk.getChunkNo())) {
                     currentSize.addAndGet(-chunk.getSize());
                     byte message[] = MessageType.createRemoved("1.0", (int) this.peerId, chunk.getFileId(), chunk.getChunkNo());

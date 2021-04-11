@@ -219,11 +219,9 @@ public class Handler implements Runnable {
                     Chunk chunk = null;
                     boolean isLocalCopy = false;
                     if (Peer.getServer().getMyFiles().containsKey(header.getFileID())) {
-                        System.out.println("My Files");
                         chunk = Peer.getServer().getMyFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 
                     } else if (Peer.getServer().getStoredFiles().containsKey(header.getFileID())) {
-                        System.out.println("Remote Files");
                         isLocalCopy = true;
                         chunk = Peer.getServer().getStoredFiles().get(header.getFileID()).getChunks().get(header.getChunkNo());
 

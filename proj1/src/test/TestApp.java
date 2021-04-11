@@ -12,7 +12,6 @@ public class TestApp {
             throw new IllegalArgumentException("Not enough arguments");
         List<String> accessPoint = Arrays.asList(args[0].split(":"));
         if (accessPoint.size() == 1) {
-            System.out.println(LocateRegistry.getRegistry());
             server = (RemoteInterface) Naming.lookup("//localhost/" + accessPoint.get(0));
         } else if (accessPoint.size() == 2) {
             server = (RemoteInterface) Naming.lookup("//" + accessPoint.get(0) + "/" + accessPoint.get(1));
