@@ -72,6 +72,8 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         new Thread(this.mdb).start();
         new Thread(this.mdr).start();
 
+        System.out.println("Peer "+peerId+" is UP");
+
         if(version.equals("1.1"))
             sendAwake();
     }
@@ -104,7 +106,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         if (this.version.equals("1.1")) {
             byte message[] = MessageType.createAwake("1.1", (int) this.peerId);
             DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
-            System.out.println(this.mc.getAddress());
             this.pool.schedule(() -> this.mc.send(packet), 3, TimeUnit.SECONDS);
         }
     }
@@ -328,11 +329,16 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             }
             else{
                 File f = Peer.getServer().getMyFiles().get(fileId);
-                if(f.doneC.getAndIncrement()==f.totalC){
+                int a = f.doneC.getAndIncrement();
+                if(a==f.totalC){
+                    System.out.println("BACKUP "+Peer.getServer().getMyFiles().get(fileId).getName()+" "+ a*100/f.totalC+"% done");   
                     System.out.println("Ended Backup fo file "+f.getName()+" in "+(System.currentTimeMillis()-f.initTime)+" ms");
                     f.doneC.set(0);
                     f.initTime = 0;
-                }                 
+                }   
+                else if(a % 5 == 0){
+                    System.out.println("BACKUP "+Peer.getServer().getMyFiles().get(fileId).getName()+" "+ a*100/f.totalC+"% done");      
+                }              
             }
         }, i * 1000 + new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }

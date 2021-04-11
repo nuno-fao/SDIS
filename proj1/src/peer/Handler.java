@@ -96,7 +96,7 @@ public class Handler implements Runnable {
                             }
                             else
                                 putchunkAnswer(finalBody, header, 0, n_packet);
-                        }, new Random().nextInt(601), TimeUnit.MILLISECONDS);
+                        }, new Random().nextInt(801), TimeUnit.MILLISECONDS);
                     }
                 }
                 case STORED -> {
@@ -145,10 +145,8 @@ public class Handler implements Runnable {
                                                     file_content = Files.readAllBytes(name);
                                                     Socket n_s;
                                                     Peer.getServer().getMdr().send(packet);
-
                                                     n_s = s.accept();
-                                                    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(n_s.getOutputStream()));
-                                                    out.write(file_content);
+                                                    n_s.getOutputStream().write(file_content);
                                                     n_s.close();
                                                 } catch (IOException e) {
                                                 }
@@ -277,6 +275,8 @@ public class Handler implements Runnable {
                                         Socket s = new Socket(header.getAddress(), header.getPort());
                                         DataInputStream in = new DataInputStream(new BufferedInputStream(s.getInputStream()));
                                         read = in.read(tmp_buffer);
+                                        if(read == -1)
+                                            break;
                                         alloc = new byte[read];
                                         System.arraycopy(tmp_buffer, 0, alloc, 0, read);
                                     } catch (IOException e) {
@@ -359,14 +359,15 @@ public class Handler implements Runnable {
         }
         if (!Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
             Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().put(header.getChunkNo(), buffer);
-            if(Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null){
-                System.out.println(Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().size()+"/"+Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() +" done");
+            Integer totalC = Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks();
+            Integer numC = Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().size();
+            if(totalC != null && (numC%5 == 0 || numC.equals(totalC))){
+                System.out.println("Restore "+numC*100/totalC+"% done");
             }
         }
 
 
         if (Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null && Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()) {
-            System.out.println("FINISHED");
             RestoreFile f = Peer.getServer().getFileRestoring().get(header.getFileID());
             String folder = Peer.getServer().getServerName() + "/" + "restored";
             if (!Files.exists(Path.of(folder))) {

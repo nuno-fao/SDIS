@@ -115,7 +115,7 @@ public class Chunk {
             buffer.put(out);
             buffer.flip();
 
-            Future<Integer> operation = fileChannel.write(buffer, 0);
+            fileChannel.write(buffer, 0);
             buffer.clear();
         }
     }
@@ -143,7 +143,7 @@ public class Chunk {
             buffer.put(out);
             buffer.flip();
 
-            Future<Integer> operation = fileChannel.write(buffer, 0);
+            fileChannel.write(buffer, 0);
             buffer.clear();
         }
     }
