@@ -11,6 +11,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -346,7 +347,25 @@ public class Handler implements Runnable {
                 buffer.put(body);
                 buffer.flip();
 
-                fileChannel.write(buffer, 0);
+                fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+                @Override
+                public void completed(Integer result, AsynchronousFileChannel attachment) {
+                    try {
+                        attachment.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                    try {
+                        attachment.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
                 buffer.clear();
                 Peer.getServer().getCurrentSize().addAndGet(body.length);
             }
@@ -392,7 +411,25 @@ public class Handler implements Runnable {
                 l_buffer.put(f.getChunks().get(iterator));
                 l_buffer.flip();
 
-                fileChannel.write(l_buffer, iterator * Peer.getServer().getChunkSize());
+                fileChannel.write(l_buffer, iterator * Peer.getServer().getChunkSize(), fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+                    @Override
+                    public void completed(Integer result, AsynchronousFileChannel attachment) {
+                        try {
+                            attachment.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                        try {
+                            attachment.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
                 l_buffer.clear();
             }
             Peer.getServer().getFileRestoring().remove(header.getFileID());

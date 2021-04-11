@@ -19,45 +19,50 @@ public class TestApp {
         } else {
             throw new IllegalArgumentException("PeerAp Error");
         }
-        switch (args[1]) {
-            case "BACKUP": {
-                int a;
-                try {
-                    a = Integer.parseInt(args[3]);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("4th argument is not a number!!!!");
+        try {
+            switch (args[1]) {
+                case "BACKUP": {
+                    int a;
+                    try {
+                        a = Integer.parseInt(args[3]);
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException("4th argument is not a number!!!!");
+                    }
+                    System.out.println(server.Backup(args[2], a));
+                    break;
                 }
-                System.out.println(server.Backup(args[2], a));
-                break;
-            }
-            case "RESTORE": {
-                if(!server.Restore(args[2])){
-                    System.out.println("No Such file " + args[2]);
+                case "RESTORE": {
+                    if (!server.Restore(args[2])) {
+                        System.out.println("No Such file " + args[2]);
+                    }
+                    break;
                 }
-                break;
-            }
-            case "DELETE": {
-                if (!server.Delete(args[2]))
-                    System.out.println("No Such file " + args[2]);
-                break;
-            }
-            case "RECLAIM": {
-                int a;
-                try {
-                    a = Integer.parseInt(args[2]);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("4th argument is not a number!!!!");
+                case "DELETE": {
+                    if (!server.Delete(args[2]))
+                        System.out.println("No Such file " + args[2]);
+                    break;
                 }
-                server.Reclaim(a);
-                break;
+                case "RECLAIM": {
+                    int a;
+                    try {
+                        a = Integer.parseInt(args[2]);
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException("4th argument is not a number!!!!");
+                    }
+                    server.Reclaim(a);
+                    break;
+                }
+                case "STATE": {
+                    System.out.println(server.State());
+                    break;
+                }
+                default: {
+                    throw new IllegalArgumentException("Illegal argument" + args[1]);
+                }
             }
-            case "STATE": {
-                System.out.println(server.State());
-                break;
-            }
-            default: {
-                throw new IllegalArgumentException("Illegal argument" + args[1]);
-            }
+        }
+        catch (Exception e){
+            System.out.println("Not enough arguments were supplied");
         }
     }
 }

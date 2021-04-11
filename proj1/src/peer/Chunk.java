@@ -3,6 +3,8 @@ package peer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.CompletionHandler;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Iterator;
@@ -115,7 +117,25 @@ public class Chunk {
             buffer.put(out);
             buffer.flip();
 
-            fileChannel.write(buffer, 0);
+            fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+                @Override
+                public void completed(Integer result, AsynchronousFileChannel attachment) {
+                    try {
+                        attachment.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                    try {
+                        attachment.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
             buffer.clear();
         }
     }
@@ -143,7 +163,25 @@ public class Chunk {
             buffer.put(out);
             buffer.flip();
 
-            fileChannel.write(buffer, 0);
+            fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+                @Override
+                public void completed(Integer result, AsynchronousFileChannel attachment) {
+                    try {
+                        attachment.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                    try {
+                        attachment.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
             buffer.clear();
         }
     }
