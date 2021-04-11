@@ -34,7 +34,10 @@ public class MulticastDispatcher implements Runnable {
 
     }
 
-
+    /**
+     * Sends a packet to the multicast socket
+     * @param packet
+     */
     public synchronized void send(DatagramPacket packet) {
         try {
             this.socket.send(packet);
@@ -50,6 +53,9 @@ public class MulticastDispatcher implements Runnable {
         return this.address;
     }
 
+    /**
+     * Runs the loop that reads the incoming message
+     */
     @Override
     public void run() {
         System.out.println(this.host + " Running");

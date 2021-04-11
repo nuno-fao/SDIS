@@ -28,7 +28,9 @@ import java.util.stream.Stream;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
-
+/**
+ * Sinleton class that holds the peer info and implements the RemoteInterface (RMI server)
+ */
 public class Peer extends UnicastRemoteObject implements RemoteInterface {
     private static Registry registry;
     private static Peer peer = null;
@@ -86,10 +88,19 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         return peer;
     }
 
+    /**
+     *
+     * @return the Peer instance
+     */
     public static Peer getServer() {
         return peer;
     }
 
+    /**
+     * Entry point
+     * @param args
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
         if (args.length < 9) {
             throw new Exception("Some args are missing!");
@@ -103,6 +114,9 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
     }
 
+    /**
+     * Sends the awake message
+     */
     private void sendAwake() {
         System.out.println("SENDING AWAKE");
         if (this.version.equals("1.1")) {
@@ -120,18 +134,33 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         return chunkQueue;
     }
 
+    /**
+     * returns the maximum size that the peer must use with backup files
+     * @return the maximum size that the peer must use with backup files
+     */
     public AtomicLong getMaxSize() {
         return maxSize;
     }
 
+    /**
+     *
+     * @return the current size of the backed up files
+     */
     public AtomicLong getCurrentSize() {
         return currentSize;
     }
 
+    /**
+     *
+     * @return peer unique ID
+     */
     public long getPeerId() {
         return this.peerId;
     }
 
+    /**
+     * reads the metadata from the disc stored on the last peer session
+     */
     private void readStoredInfo() {
         try {
             if (Files.exists(Path.of(Peer.getServer().getServerName() + "/.ldata"))) {
@@ -214,42 +243,82 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         return this.pool;
     }
 
+    /**
+     *
+     * @return chunk Default size
+     */
     public int getChunkSize() {
         return this.chunkSize;
     }
 
+    /**
+     *
+     * @return the name of the server folder
+     */
     public String getServerName() {
         return this.serverName;
     }
 
+    /**
+     *
+     * @return the Class MulticastDispatcher responsible for the Message control socket
+     */
     public MulticastDispatcher getMc() {
         return this.mc;
     }
 
+    /**
+     *
+     * @return the Class MulticastDispatcher responsible for the backup
+     */
     public MulticastDispatcher getMdb() {
         return this.mdb;
     }
 
+    /**
+     *
+     * @return the Class MulticastDispatcher responsible for the restore
+     */
     public MulticastDispatcher getMdr() {
         return this.mdr;
     }
 
+    /**
+     *
+     * @return map with the files that the peer has made backupt
+     */
     public ConcurrentHashMap<String, RemoteFile> getStoredFiles() {
         return this.storedFiles;
     }
 
+    /**
+     *
+     * @return map with the files that belong to the peer ( as initiator-peer)
+     */
     public ConcurrentHashMap<String, File> getMyFiles() {
         return this.myFiles;
     }
 
+    /**
+     *
+     * @return name of the access point used on the rmi
+     */
     String getAccessPoint() {
         return this.accessPoint;
     }
 
+    /**
+     *
+     * @return peer version ( 1.0 or 1.1)
+     */
     public String getVersion() {
         return this.version;
     }
 
+    /**
+     *
+     * @return map with files that were deleted but still hava pending removed messges
+     */
     public ConcurrentHashMap<String, File> getWaitingForPurge() {
         return waitingForPurge;
     }
@@ -267,10 +336,20 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         }
     }
 
+    /**
+     * map with the info of the file that the peer is restoring
+     * @return
+     */
     public ConcurrentHashMap<String, RestoreFile> getFileRestoring() {
         return this.fileRestoring;
     }
 
+    /**
+     * Initiates the Backup protocol
+     * @param filename
+     * @param replicationDegree
+     * @return
+     */
     @Override
     public String Backup(String filename, int replicationDegree) {
         long before = System.currentTimeMillis();
@@ -318,6 +397,15 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         return "File not found";
     }
 
+    /**
+     * recursively calls resends a backup message if the number of answers is smaller thant the desired replication degree
+     * @param i
+     * @param pool
+     * @param packet
+     * @param fileId
+     * @param chunkNo
+     * @param repDegree
+     */
     private void backupAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileId, int chunkNo, int repDegree) {
         this.mdb.send(packet);
         pool.schedule(() -> {
@@ -345,6 +433,14 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         }, i * 1000 + new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * recursively sends the backup message every 10 + random(0-20) milliseconds,
+     * used to prevent busy waiting or socket monopoly
+     * @param f file to send
+     * @param replicationDegree
+     * @param io
+     * @param i
+     */
     private void send(File f, int replicationDegree, InputStream io, int i) {
         byte a[] = new byte[this.chunkSize];
         this.myFiles.get(f.getFileId()).putChunk(i, new Chunk(i, f.getFileId(), replicationDegree));
@@ -376,6 +472,11 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     }
 
 
+    /**
+     * initiates the restore protocol
+     * @param filename
+     * @return
+     */
     @Override
     public boolean Restore(String filename) {
         long before = System.currentTimeMillis();
@@ -408,6 +509,15 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
     }
 
+    /**
+     * recursively resends the restore messag efor a chunk if it has not received an answer
+     * @param i
+     * @param pool
+     * @param packet
+     * @param fileID
+     * @param chunkNo
+     * @param t
+     */
     private void RestoreAux(int i, ScheduledExecutorService pool, DatagramPacket packet, String fileID, int chunkNo, int t) {
         this.mc.send(packet);
         pool.schedule(() -> {
@@ -417,6 +527,11 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         }, new Random().nextInt(401) + t * 1000, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * initiates the delete protocol
+     * @param filename
+     * @return
+     */
     @Override
     public boolean Delete(String filename) {
         long before = System.currentTimeMillis();
@@ -432,6 +547,11 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     }
 
 
+    /**
+     * sends th edelete message and waits for answer if (version == 1.1)
+     * @param fileId
+     * @return
+     */
     private boolean deleteFile(String fileId) {
         if (this.version.equals("1.0")) {
             byte message[] = MessageType.createDelete("1.0", (int) this.peerId, fileId);
@@ -498,6 +618,12 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         return false;
     }
 
+    /**
+     * sends the delete 5 times
+     * @param i
+     * @param pool
+     * @param packet
+     */
     private void deleteAux(int i, ScheduledExecutorService pool, DatagramPacket packet) {
         this.mc.send(packet);
         pool.schedule(() -> {
@@ -507,6 +633,10 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         }, new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * initiates the reclaim protocol
+     * @param maxSpace
+     */
     @Override
     public void Reclaim(long maxSpace) {
         long before = System.currentTimeMillis();
@@ -547,6 +677,11 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         System.out.println("Reclaim Time : " + (System.currentTimeMillis() - before));
     }
 
+    /**
+     * initiates the state protocol
+     * @return string with server data
+     * @throws RemoteException
+     */
     @Override
     public String State() throws RemoteException {
         String out = "";

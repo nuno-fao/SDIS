@@ -3,6 +3,9 @@ package peer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Implements Header interface, used to Process the header messages
+ */
 public class HeaderConcrete implements Header {
     private String version, fileID, address;
     private Integer senderID, chunkNo, replicationDeg, port;
@@ -12,12 +15,23 @@ public class HeaderConcrete implements Header {
     private HeaderConcrete() {
     }
 
+    /**
+     * Returns a subarray of the input array
+     * @param argsList
+     * @param startingIndex
+     * @return
+     */
     private static String[] getSubArray(String[] argsList, int startingIndex) {
         String[] cp = new String[argsList.length - startingIndex - 1];
         System.arraycopy(argsList, startingIndex + 1, cp, 0, argsList.length - startingIndex - 1);
         return cp;
     }
 
+    /**
+     * parses the headers
+     * @param headerMessage received message
+     * @return loist of headers on the received message
+     */
     static List<Header> getHeaders(String headerMessage) {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
         List<Header> outList = new ArrayList<>();

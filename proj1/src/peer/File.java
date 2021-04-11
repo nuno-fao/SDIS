@@ -21,6 +21,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+/**
+ * Used to store the metadata of the local file to backup and make operations on its chunks
+ */
 public class File {
     private String fileId;
     private String name;
@@ -51,6 +54,11 @@ public class File {
         Files.createDirectories(Path.of(Peer.getServer().getServerName() + "/.ldata/" + this.fileId));
     }
 
+    /**
+     *
+     * @param s
+     * @return the hash result of the param s
+     */
     private static String getHashedString(String s) {
         MessageDigest algo = null;
         try {
@@ -66,6 +74,11 @@ public class File {
         return out.toString();
     }
 
+    /**
+     * Reads the file and retrieves the modification date and the size
+     * @param name (path of the file)
+     * @return
+     */
     public static String getFileInfo(String name) {
         if (Files.exists(Path.of(name))) {
             Path file = Path.of(name);
@@ -83,30 +96,59 @@ public class File {
         return null;
     }
 
+    /**
+     * returns the time the file was initiated
+     * @return
+     */
     public long getTime() {
         return this.time;
     }
 
+    /**
+     * sets the time the flie was initiated
+     * @param time
+     */
     public void setTime(long time) {
         this.time = time;
     }
 
+    /**
+     * @returnthe number of chunks the file has
+     */
     public int getNumChunks() {
         return this.numChunks;
     }
 
+    /**
+     * Sets the number of chunks of the file
+     * @param numChunks
+     */
     synchronized public void setNumChunks(int numChunks) {
         this.numChunks = numChunks;
     }
 
+    /**
+     *
+     * @return the hash map that maps the chunk ID to the Chunk instance
+     */
     public ConcurrentHashMap<Integer, Chunk> getChunks() {
         return this.chunks;
     }
 
+    /**
+     * Puts a chunk c with mapped with the key
+     * @param key
+     * @param c
+     */
     public void putChunk(int key, Chunk c) {
         chunks.put(key, c);
     }
 
+    /**
+     * Adds the peer to the chunk's peerlist and updates the chunk metadata file
+     * @param chunkNo
+     * @param peerId
+     */
     void addStored(int chunkNo, int peerId) {
         if (this.chunks.containsKey(chunkNo)) {
             Chunk c = this.chunks.get(chunkNo);
@@ -158,6 +200,10 @@ public class File {
         }
     }
 
+    /**
+     * removes peer (peerId) from every chunk
+     * @param peerId
+     */
     public void removePeerFromChunks(int peerId){
         for(Chunk chunk:chunks.values()){
             if (chunk.getPeerList().containsKey(peerId)) {
@@ -169,12 +215,20 @@ public class File {
         }
     }
 
+    /**
+     * rewrites every ldata info of every chunk
+     */
     public void updateChunks(){
         for(Chunk chunk:chunks.values()){
             chunk.updateLdata(this.name);
         }
     }
 
+    /**
+     * checks if the peerId has a chunk of this file
+     * @param peerId
+     * @return
+     */
     public boolean peerHasChunks(int peerId){
         for(Chunk chunk:chunks.values()){
             if(chunk.getPeerList().containsKey(peerId)){
@@ -184,18 +238,35 @@ public class File {
         return false;
     }
 
+    /**
+     *
+     * @param chunkNo
+     * @return the perceived replication degree of the chunk (chunkNo)
+     */
     public Integer getReplicationDegree(int chunkNo) {
         return this.chunks.get(chunkNo).getPeerCount();
     }
 
+    /**
+     *
+     * @return file unique fileId
+     */
     public String getFileId() {
         return this.fileId;
     }
 
+    /**
+     *
+     * @return file name/path
+     */
     public String getName() {
         return this.name;
     }
 
+    /**
+     *
+     * @return file edition time
+     */
     String getEditionTime() {
         return this.editionTime;
     }

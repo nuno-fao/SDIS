@@ -14,6 +14,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.nio.file.StandardOpenOption.*;
 
+/**
+ * Used to store the chunk metadata
+ */
 public class Chunk {
     private int repDegree = 0;
     private int realDegree = 0;
@@ -47,34 +50,64 @@ public class Chunk {
         this.size = size;
     }
 
+    /**
+     *
+     * @return chunk perceived degree
+     */
     public int getRealDegree() {
         return realDegree;
     }
 
+    /**
+     *
+     * @return chunk size in bytes
+     */
     public int getSize() {
         return size;
     }
 
+    /**
+     * Sets the size of the chunk
+     * @param size
+     */
     void setSize(int size) {
         this.size = size;
     }
 
+    /**
+     *
+     * @return the fileId of the chunk respective file
+     */
     public String getFileId() {
         return this.fileId;
     }
 
+    /**
+     * Substracts 1 to the chunk perceived degree
+     */
     void subtractRealDegree() {
         this.realDegree--;
     }
 
+    /**
+     * Adds 1 to the chunk perceived degree
+     */
     synchronized public void  addToRealDegree(){
         realDegree++;
     }
 
+    /**
+     *
+     * @return the id of the chunk(chunkNo)
+     */
     public int getChunkNo() {
         return this.chunkNo;
     }
 
+    /**
+     *
+     * @return the hashmap with the peers that had stored the chunk(used as set)
+     */
     public ConcurrentHashMap<Integer, Boolean> getPeerList() {
         if (this.peerCount == null) {
             this.peerCount = new ConcurrentHashMap<>();
@@ -82,6 +115,10 @@ public class Chunk {
         return this.peerCount;
     }
 
+    /**
+     *
+     * @return the number of peers that stored the chunk
+     */
     public int getPeerCount() {
         if (this.peerCount != null) {
             return this.peerCount.size();
@@ -89,18 +126,33 @@ public class Chunk {
         return this.realDegree;
     }
 
+    /**
+     *
+     * @return the desired chunk degree
+     */
     public int getRepDegree() {
         return this.repDegree;
     }
 
+    /**
+     * Sets the chunk desired degree
+     * @param repDegree
+     */
     void setRepDegree(int repDegree) {
         this.repDegree = repDegree;
     }
 
+    /**
+     *
+     * @return true if the perceived degree is lower than the desired degree
+     */
     boolean shallSend() {
         return getPeerList().size() < repDegree - 1;
     }
 
+    /**
+     * Writes the chunk data to the respective file(remote file)
+     */
     synchronized void updateRdata() {
         if (repDegree != -1) {
             Path path = Paths.get(Peer.getServer().getServerName() + "/.rdata/" + this.fileId + "/" + this.chunkNo);
@@ -140,6 +192,9 @@ public class Chunk {
         }
     }
 
+    /**
+     * Writes the chunk data to the respective file(local file)
+     */
     synchronized void updateLdata(String filename) {
         if (repDegree != -1) {
             Path path = Paths.get(Peer.getServer().getServerName() + "/.ldata/" + this.fileId + "/" + this.chunkNo);

@@ -27,6 +27,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+/**
+ * Used as a worker, processes the received messages and sends the response
+ */
 public class Handler implements Runnable {
     private static AtomicInteger skipped = new AtomicInteger(0);
     static private long time = System.currentTimeMillis();
@@ -40,6 +43,9 @@ public class Handler implements Runnable {
         standbyBackupList = new ConcurrentHashMap<>();
     }
 
+    /**
+     * Processes the read message and sends the response
+     */
     @Override
     public void run() {
         String[] head_body = new String(this.packet.getData()).stripLeading().split("\r\n\r\n", 2);
@@ -295,6 +301,13 @@ public class Handler implements Runnable {
         }
     }
 
+    /**
+     * Stores the Chunk on the disc memory and sends stroed message
+     * @param body of the chunk
+     * @param header header of the message read
+     * @param waitTime time to wait before sending the answer
+     * @param packet answer packer
+     */
     private void putchunkAnswer(byte[] body, Header header, int waitTime, DatagramPacket packet) {
         if (Peer.getServer().getMyFiles().containsKey(header.getFileID())) {
             return;
@@ -371,6 +384,12 @@ public class Handler implements Runnable {
             }
     }
 
+    /**
+     * Stores the incoming chunk and stores it on the disc if every chunk was received
+     * @param header message header
+     * @param buffer_length
+     * @param buffer (chunk data)
+     */
     synchronized private void processChunk(Header header, int buffer_length, byte[] buffer) {
         if(Peer.getServer().getFileRestoring().containsKey(header.getFileID())){
         if ((buffer_length < Peer.getServer().getChunkSize()) && (header.getChunkNo() < Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() - 1)) {
@@ -438,6 +457,16 @@ public class Handler implements Runnable {
     }
     }
 
+    /**
+     * Recursively checks it has received the answer to the remove message and schedule the resend message if it has not
+     * @param i
+     * @param pool (thread pool)
+     * @param packet1
+     * @param packet2
+     * @param fileId
+     * @param chunkNo
+     * @param repDegree
+     */
     private void removeAux(int i, ScheduledExecutorService pool, DatagramPacket packet1, DatagramPacket
             packet2, String fileId, int chunkNo, int repDegree) {
         Peer.getServer().getMdb().send(packet1);
@@ -457,6 +486,12 @@ public class Handler implements Runnable {
         }, i * 1000L + new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Used to send a packet Recursively 5 times
+     * @param i
+     * @param pool
+     * @param packet
+     */
     private void sendMessage(int i, ScheduledExecutorService pool, DatagramPacket packet) {
         Peer.getServer().getMc().send(packet);
         pool.schedule(() -> {

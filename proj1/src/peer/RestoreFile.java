@@ -3,6 +3,9 @@ package peer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * used to store the data of a file while restoring it
+ */
 public class RestoreFile {
     private ConcurrentHashMap<Integer, byte[] > chunks;
     Integer numberOfChunks;
