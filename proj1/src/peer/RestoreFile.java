@@ -1,10 +1,12 @@
 package peer;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RestoreFile {
-    ConcurrentHashMap<Integer, byte[] > chunks;
+    private ConcurrentHashMap<Integer, byte[] > chunks;
     Integer numberOfChunks;
+    AtomicInteger writing = new AtomicInteger(0);
 
     public void setNumberOfChunks(int numberOfChunks) {
         this.numberOfChunks = numberOfChunks;

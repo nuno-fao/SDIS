@@ -2,6 +2,8 @@ package peer;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -143,8 +145,10 @@ public class Handler implements Runnable {
                                                     file_content = Files.readAllBytes(name);
                                                     Socket n_s;
                                                     Peer.getServer().getMdr().send(packet);
+
                                                     n_s = s.accept();
-                                                    n_s.getOutputStream().write(file_content);
+                                                    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(n_s.getOutputStream()));
+                                                    out.write(file_content);
                                                     n_s.close();
                                                 } catch (IOException e) {
                                                 }
@@ -266,7 +270,7 @@ public class Handler implements Runnable {
                             }
                             case "1.1" -> {
                                 if (Peer.getServer().getFileRestoring().containsKey(header.getFileID())) {
-                                    int read;
+                                    int read = 0;
                                     byte alloc[];
                                     try {
                                         byte[] tmp_buffer = new byte[64000];
@@ -348,18 +352,22 @@ public class Handler implements Runnable {
             }
     }
 
-    private void processChunk(Header header, int buffer_length, byte[] buffer) {
+    synchronized private void processChunk(Header header, int buffer_length, byte[] buffer) {
+        if(Peer.getServer().getFileRestoring().containsKey(header.getFileID())){
+        if ((buffer_length < Peer.getServer().getChunkSize()) && (header.getChunkNo() < Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() - 1)) {
+            return;
+        }
         if (!Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().containsKey(header.getChunkNo())) {
             Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().put(header.getChunkNo(), buffer);
+            if(Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null){
+                System.out.println(Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().size()+"/"+Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() +" done");
+            }
         }
 
-        if (Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() == null && buffer_length < Peer.getServer().getChunkSize()) {
-            Peer.getServer().getFileRestoring().get(header.getFileID()).setNumberOfChunks(header.getChunkNo() + 1);
-        }
 
         if (Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks() != null && Peer.getServer().getFileRestoring().get(header.getFileID()).getChunks().values().size() == Peer.getServer().getFileRestoring().get(header.getFileID()).getNumberOfChunks()) {
+            System.out.println("FINISHED");
             RestoreFile f = Peer.getServer().getFileRestoring().get(header.getFileID());
-            Peer.getServer().getFileRestoring().remove(header.getFileID());
             String folder = Peer.getServer().getServerName() + "/" + "restored";
             if (!Files.exists(Path.of(folder))) {
                 try {
@@ -386,7 +394,9 @@ public class Handler implements Runnable {
                 fileChannel.write(l_buffer, iterator * Peer.getServer().getChunkSize());
                 l_buffer.clear();
             }
+            Peer.getServer().getFileRestoring().remove(header.getFileID());
         }
+    }
     }
 
     private void removeAux(int i, ScheduledExecutorService pool, DatagramPacket packet1, DatagramPacket

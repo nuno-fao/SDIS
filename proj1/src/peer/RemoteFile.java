@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RemoteFile {
     ConcurrentHashMap<Integer, Chunk> chunks = new ConcurrentHashMap<>();

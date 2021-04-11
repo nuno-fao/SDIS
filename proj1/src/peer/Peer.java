@@ -65,9 +65,9 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         this.storedFiles = new ConcurrentHashMap<>();
         this.myFiles = new ConcurrentHashMap<>();
 
-        this.mc = new MulticastDispatcher(mc.port, mc.address, this.chunkSize, (int) peerId);
-        this.mdb = new MulticastDispatcher(mdb.port, mdb.address, this.chunkSize, (int) peerId);
-        this.mdr = new MulticastDispatcher(mdr.port, mdr.address, this.chunkSize, (int) peerId);
+        this.mc = new MulticastDispatcher(mc.port, mc.address, this.chunkSize+500, (int) peerId);
+        this.mdb = new MulticastDispatcher(mdb.port, mdb.address, this.chunkSize+500, (int) peerId);
+        this.mdr = new MulticastDispatcher(mdr.port, mdr.address, this.chunkSize+500, (int) peerId);
         new Thread(this.mc).start();
         new Thread(this.mdb).start();
         new Thread(this.mdr).start();
@@ -386,13 +386,13 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         ConcurrentHashMap<Integer, byte[]> receivedChunks = new ConcurrentHashMap<>();
 
         this.fileRestoring.put(fileID, new RestoreFile(receivedChunks));
+        this.fileRestoring.get(fileID).setNumberOfChunks(new java.io.File(getServerName()+"/.ldata/"+fileID).listFiles().length);
 
         for (Chunk chunk : this.myFiles.get(fileID).getChunks().values()) {
             byte[] message = MessageType.createGetchunk("1.0", (int) this.peerId, fileID, chunk.getChunkNo());
             DatagramPacket packet = new DatagramPacket(message, message.length, this.mc.getAddress(), this.mc.getPort());
             String finalFileID = fileID;
             pool.schedule(() -> RestoreAux(1, this.pool, packet, finalFileID, chunk.getChunkNo(), 1), new Random().nextInt(401), TimeUnit.MILLISECONDS);
-
         }
 
         System.out.println("Restore Time for file " + fileID + ": " + (System.currentTimeMillis() - before));
