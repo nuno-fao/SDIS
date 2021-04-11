@@ -553,14 +553,30 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         out += ("Backed Up Files Owned by the peer\n");
         out += "Max Size: " + Peer.getServer().getMaxSize().get() + "\n";
         out += "Current Size: " + Peer.getServer().getCurrentSize().get() + "\n";
-        for (File f : this.myFiles.values()) {
-            out += "    Name:               " + f.getName() + "\n";
-            out += "    FileID:             " + f.getFileId() + "\n";
-            out += "    Desired Rep Degree: " + ((Chunk) f.getChunks().values().toArray()[0]).getRepDegree() + "\n";
-            out += "    CHUNKS: \n";
-            for (Chunk c : f.getChunks().values()) {
-                out += "        CHUNK NO:     " + c.getChunkNo() + "\n";
-                out += "            Perceived Rep Degree:    " + c.getPeerCount() + "\n";
+
+        if(this.myFiles.size()>0) {
+            out += "\nMy Files: " + "\n";
+            for (File f : this.myFiles.values()) {
+                out += "\n    Name:               " + f.getName() + "\n";
+                out += "    FileID:             " + f.getFileId() + "\n";
+                out += "    Desired Rep Degree: " + ((Chunk) f.getChunks().values().toArray()[0]).getRepDegree() + "\n";
+                out += "    CHUNKS: \n";
+                for (Chunk c : f.getChunks().values()) {
+                    out += "        CHUNK NO:     " + c.getChunkNo() + "\n";
+                    out += "            Perceived Rep Degree:    " + c.getPeerCount() + "\n";
+                }
+            }
+        }
+        if(this.storedFiles.size()>0) {
+            out += "\nStored Files: " + "\n";
+            for (RemoteFile f : this.storedFiles.values()) {
+                out += "\n    FileID:             " + f.getFileId() + "\n";
+                out += "    CHUNKS: \n";
+                for (Chunk c : f.getChunks().values()) {
+                    out += "        CHUNK NO:     " + c.getChunkNo() + "\n";
+                    out += "            Desired Rep Degree:    " + c.getRepDegree() + "\n";
+                    out += "            Perceived Rep Degree:  " + c.getPeerCount() + "\n";
+                }
             }
         }
         return out;

@@ -43,6 +43,7 @@ public class Handler implements Runnable {
     @Override
     public void run() {
         String[] head_body = new String(this.packet.getData()).stripLeading().split("\r\n\r\n", 2);
+        System.out.println(head_body[0]);
         byte body[] = null;
         byte tmp[] = this.packet.getData();
         int i = 0;
@@ -396,7 +397,8 @@ public class Handler implements Runnable {
                     e.printStackTrace();
                 }
             }
-            Path path = Paths.get(folder + "/" + Peer.getServer().getMyFiles().get(header.getFileID()).getName());
+            String[] a = Peer.getServer().getMyFiles().get(header.getFileID()).getName().split("/");
+            Path path = Paths.get(folder + "/" + a[a.length-1]);
             AsynchronousFileChannel fileChannel = null;
             try {
                 fileChannel = AsynchronousFileChannel.open(
