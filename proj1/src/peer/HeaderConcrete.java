@@ -22,7 +22,7 @@ public class HeaderConcrete implements Header {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
         List<Header> outList = new ArrayList<>();
         Header localHeader;
-
+        int i = 0;
         while (true) {
             try {
 
@@ -52,7 +52,9 @@ public class HeaderConcrete implements Header {
             } catch (Exception | ParseError e) {
                 return new ArrayList<>();
             }
-
+            i++;
+            if(i>200)
+                return outList;
         }
     }
 

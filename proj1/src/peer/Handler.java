@@ -43,7 +43,6 @@ public class Handler implements Runnable {
     @Override
     public void run() {
         String[] head_body = new String(this.packet.getData()).stripLeading().split("\r\n\r\n", 2);
-        System.out.println(head_body[0]);
         byte body[] = null;
         byte tmp[] = this.packet.getData();
         int i = 0;
@@ -62,7 +61,7 @@ public class Handler implements Runnable {
             body = "".getBytes();
         }
 
-        List<Header> headers = HeaderConcrete.getHeaders(head_body[0] + "\r\n\r\n");
+        List<Header> headers = HeaderConcrete.getHeaders(head_body[0] + " \r\n\r\n");
 
         for (Header header : headers) {
             if (header.getSenderID() == this.peerId) {

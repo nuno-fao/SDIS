@@ -209,10 +209,7 @@ public enum MessageType {
 
     void processReplicationDeg(Header h, String replicationDeg) throws ParseError {
         try {
-            if (replicationDeg.length() != 1) {
-                throw new ParseError();
-            }
-            h.setReplicationDeg(Integer.parseInt(replicationDeg));
+            h.setReplicationDeg(Integer.parseInt(replicationDeg.trim()));
             if (h.getReplicationDeg() < 0) {
                 throw new ParseError();
             }
