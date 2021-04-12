@@ -324,15 +324,17 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     }
 
     private void startRemoteObject() {
-        try {
+        /*try {
             LocateRegistry.createRegistry(1099);
         } catch (RemoteException e) {
-        }
+        }*/
 
         try {
             Naming.rebind(this.accessPoint, this);
         } catch (RemoteException | MalformedURLException e) {
-            e.printStackTrace();
+            System.out.println("please run rmiregistry, exiting peer with error");
+            System.exit(1);
+            //e.printStackTrace();
         }
     }
 
@@ -419,8 +421,14 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             }
             else{
                 File f = Peer.getServer().getMyFiles().get(fileId);
-                int a = f.doneC.getAndIncrement();
+                int a = f.doneC.getAndIncrement();  
                 if(a==f.totalC){
+                    if(f.totalC == 0){
+                    	System.out.println("Ended Backup fo file "+f.getName()+" in "+(System.currentTimeMillis()-f.initTime)+" ms");
+                    	f.doneC.set(0);
+                    	f.initTime = 0; 
+                    	return;               
+                    } 
                     System.out.println("BACKUP "+Peer.getServer().getMyFiles().get(fileId).getName()+" "+ a*100/f.totalC+"% done");   
                     System.out.println("Ended Backup fo file "+f.getName()+" in "+(System.currentTimeMillis()-f.initTime)+" ms");
                     f.doneC.set(0);
@@ -428,7 +436,12 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                 }   
                 else if(a % 5 == 0){
                     System.out.println("BACKUP "+Peer.getServer().getMyFiles().get(fileId).getName()+" "+ a*100/f.totalC+"% done");      
-                }              
+                }   
+                else if(f.totalC == 0){
+                    System.out.println("Ended Backup fo file "+f.getName()+" in "+(System.currentTimeMillis()-f.initTime)+" ms");
+                    f.doneC.set(0);
+                    f.initTime = 0;                
+                }           
             }
         }, i * 1000 + new Random().nextInt(401), TimeUnit.MILLISECONDS);
     }
