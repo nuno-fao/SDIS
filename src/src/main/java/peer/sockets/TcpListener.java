@@ -16,6 +16,7 @@ public class TcpListener implements Runnable {
     Selector selector;
     SSLContext context;
     ConcurrentLinkedDeque<ServerSocketChannel> serverSocketChannels = new ConcurrentLinkedDeque<>();
+    ConcurrentLinkedDeque<ChannelEngine> channelEngines = new ConcurrentLinkedDeque<>();
 
 
     private ExecutorService pool = Executors.newFixedThreadPool(10);
@@ -38,17 +39,17 @@ public class TcpListener implements Runnable {
         SocketChannel socketChannel = ((ServerSocketChannel) key.channel()).accept();
         socketChannel.configureBlocking(false);
 
-        SSLEngine engine = context.createSSLEngine("localhost", socketChannel.socket().getLocalPort());
-        engine.setUseClientMode(false);
-
         pool.execute(() -> {
+            SSLEngine engine = context.createSSLEngine("localhost", socketChannel.socket().getLocalPort());
+            engine.setUseClientMode(false);
             try {
                 TcpUtils.Handshake(socketChannel, engine);
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            channelEngines.push(new ChannelEngine(socketChannel, engine));
+            selector.wakeup();
         });
-        socketChannel.register(selector, SelectionKey.OP_READ, engine);
     }
 
     @Override
@@ -57,6 +58,14 @@ public class TcpListener implements Runnable {
             while (!serverSocketChannels.isEmpty()) {
                 try {
                     serverSocketChannels.pop().register(selector, SelectionKey.OP_ACCEPT);
+                } catch (ClosedChannelException e) {
+                    e.printStackTrace();
+                }
+            }
+            while (!channelEngines.isEmpty()) {
+                try {
+                    ChannelEngine channelEngine = channelEngines.pop();
+                    channelEngine.channel.register(selector, SelectionKey.OP_READ, channelEngine.engine);
                 } catch (ClosedChannelException e) {
                     e.printStackTrace();
                 }
@@ -86,11 +95,22 @@ public class TcpListener implements Runnable {
 
                         SocketChannel socketChannel = ((SocketChannel) key.channel());
                         System.out.println("Successfully connected to: " + socketChannel.socket().getInetAddress().getHostAddress() + ":" + socketChannel.socket().getLocalPort());
-                        ;
+
                     }
                 }
             }
         }
     }
+
+    private class ChannelEngine {
+        SocketChannel channel;
+        SSLEngine engine;
+
+        public ChannelEngine(SocketChannel channel, SSLEngine engine) {
+            this.channel = channel;
+            this.engine = engine;
+        }
+    }
 }
+
 
