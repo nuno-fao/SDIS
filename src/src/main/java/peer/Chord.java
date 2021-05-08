@@ -22,9 +22,22 @@ public class Chord {
         this.n = new Node(address, port, id);
     }
 
-    public Node FindSuccessor(Node retriever, Integer id) {
-
-        System.exit(10);
+    public Node FindSuccessor(Integer id) {
+        if (fingerTable.get(0).id >= id && id > n.id) {
+            return fingerTable.get(0);
+        } else {
+            Node nl;
+            for (int i = fingerTable.size() - 1; i >= 0; i--) {
+                if (n.id < fingerTable.get(i).id && fingerTable.get(i).id < id) {
+                    nl = fingerTable.get(i);
+                    break;
+                }
+                if (fingerTable.get(i).id == id) {
+                    return fingerTable.get(i);
+                }
+            }
+            //todo node nl.find_successor(id)
+        }
         return null;
     }
 
@@ -40,7 +53,7 @@ public class Chord {
 
     public void Join(Node nl) {
         predecessor = null;
-        successor = FindSuccessor(nl, n.id);
+        successor = FindSuccessor(n.id);
     }
 
     public void Stabilize() {
@@ -61,7 +74,7 @@ public class Chord {
         if (next > fingerTable.size() - 1) {
             next = 0;
         }
-        fingerTable.set(next, FindSuccessor(n, n.id + (int) Math.pow(2, next)));
+        fingerTable.set(next, FindSuccessor(n.id + (int) Math.pow(2, next)));
     }
 
     public void CheckPredecessor() {
