@@ -10,16 +10,13 @@ import java.rmi.RemoteException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static java.lang.Thread.sleep;
-
 public class Peer implements RemoteInterface {
 
     public static void main(String args[]) {
-
-
         ExecutorService pool = Executors.newFixedThreadPool(10);
-        try {
-            TcpUtils.GetContext("keys/truststore", "keys/client.keys", "123456");
+        TcpUtils.GetContext("keys/truststore", "keys/client.keys", "123456");
+
+        if (args.length == 0 || args[0].equals("s")) {
             try {
                 TcpListener tcpListener = new TcpListener();
                 Thread listener = new Thread(tcpListener);
@@ -28,19 +25,32 @@ public class Peer implements RemoteInterface {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+        if (args.length == 0 || args[0].equals("p")) {
             pool.execute(() -> {
                 try {
-                    pool.execute(new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool));
-                    pool.execute(new TcpWriter("localhost", 34567, "trtsfddddddddddddddrtr".getBytes(), pool));
-                    pool.execute(new TcpWriter("localhost", 34567, "trtsdffffrtr".getBytes(), pool));
-                    pool.execute(new TcpWriter("localhost", 34567, "trsfdddddddddddddddddddddddddddddddddddddtrtr".getBytes(), pool));
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+                    new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool).run();
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             });
-            sleep(20000);
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 

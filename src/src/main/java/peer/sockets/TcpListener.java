@@ -7,10 +7,7 @@ import javax.net.ssl.SSLEngineResult;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.nio.channels.spi.SelectorProvider;
 import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
@@ -57,8 +54,7 @@ public class TcpListener implements Runnable {
             engine.setUseClientMode(false);
             TcpUtils.Handshake(socketChannel, engine, pool);
 
-
-            socketChannel.register(selector, SelectionKey.OP_READ, engine);
+            ce.push(new ChannelEngine(engine, socketChannel));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -74,6 +70,14 @@ public class TcpListener implements Runnable {
             } catch (IOException e) {
                 e.printStackTrace();
                 continue;
+            }
+            while (!ce.isEmpty()) {
+                var c = ce.pop();
+                try {
+                    c.socketChannel.register(selector, SelectionKey.OP_READ, c.engine);
+                } catch (ClosedChannelException e) {
+                    e.printStackTrace();
+                }
             }
             Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();
             while (selectedKeys.hasNext()) {
@@ -94,35 +98,25 @@ public class TcpListener implements Runnable {
                         ByteBuffer peerAppData = ByteBuffer.allocate(engine.getSession().getApplicationBufferSize());
                         pool.execute(() -> {
                             try {
-                                while (true) {
-                                    int n = socketChannel.read(peerNetData);
-                                    if (n > 0) {
+                                int n = socketChannel.read(peerNetData);
+                                if (n > 0) {
 
-                                        peerNetData.flip();
-                                        while (peerNetData.hasRemaining()) {
-                                            SSLEngineResult result = engine.unwrap(peerNetData, peerAppData);
+                                    peerNetData.flip();
+                                    while (peerNetData.hasRemaining()) {
+                                        SSLEngineResult result = engine.unwrap(peerNetData, peerAppData);
 
+                                        switch (result.getStatus()) {
 
-                                            switch (result.getStatus()) {
-
-                                                case OK:
-                                                    System.out.println(i.getAndIncrement());
-                                                    System.out.println(new String(peerAppData.array()));
-                                                    break;
-                                                case CLOSED:
-                                                    engine.closeOutbound();
-                                                    TcpUtils.Handshake(socketChannel, engine, pool);
-                                                    socketChannel.close();
-                                                    return;
-                                            }
+                                            case OK:
+                                                System.out.println(i.getAndIncrement());
+                                                System.out.println(new String(peerAppData.array()));
+                                                break;
+                                            case CLOSED:
+                                                return;
                                         }
-                                    } else if (n < 0) {
-                                        //todo nao funciona
-                                        engine.closeInbound();
-                                        engine.closeOutbound();
-                                        TcpUtils.Handshake(socketChannel, engine, pool);
-                                        socketChannel.close();
                                     }
+                                } else if (n < 0) {
+                                    return;
                                 }
                             } catch (IOException e) {
                                 e.printStackTrace();

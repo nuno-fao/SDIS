@@ -49,18 +49,14 @@ public class TcpWriter implements Runnable {
             switch (res.getStatus()) {
                 case OK:
                     myNetData.flip();
-
                     while (myNetData.hasRemaining()) {
                         socketChannel.write(myNetData);
                     }
-                    engine.closeOutbound();
-                    TcpUtils.Handshake(socketChannel, engine, pool);
-                    socketChannel.close();
                     break;
             }
+
         } catch (Exception e) {
 
         }
-
     }
 }
