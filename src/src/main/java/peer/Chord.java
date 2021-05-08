@@ -61,6 +61,7 @@ public class Chord {
         if (x.id > n.id && x.id < successor.id) {
             successor = x;
         }
+        //todo notify
     }
 
     public void Notify(Node possiblePredecessor) {
