@@ -1,5 +1,7 @@
 package peer.sockets;
 
+import peer.Address;
+
 import javax.net.ssl.*;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -10,8 +12,17 @@ import java.security.*;
 import java.security.cert.CertificateException;
 
 public class TcpUtils {
+    static String truststoreFile, keyFile, password;
+    static SSLContext context;
+
+    static public SSLEngine GetEngine(Address address) {
+        return context.createSSLEngine(address.address, address.port);
+    }
 
     static public SSLContext GetContext(String truststoreFile, String keyFile, String password) throws KeyStoreException, IOException, NoSuchAlgorithmException, KeyManagementException, CertificateException, UnrecoverableKeyException {
+        TcpUtils.truststoreFile = truststoreFile;
+        TcpUtils.keyFile = keyFile;
+        TcpUtils.password = password;
         char[] passphrase = password.toCharArray();
 
         // First initialize the key and trust material
@@ -31,6 +42,7 @@ public class TcpUtils {
         // Get an instance of SSLContext for TLS protocols
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+        TcpUtils.context = sslContext;
         return sslContext;
     }
 
@@ -131,6 +143,17 @@ public class TcpUtils {
         }
 
         return new SocketEngine(socketChannel, engine);
+    }
+
+    public static boolean IsAlive(Address address) {
+        try {
+            SocketChannel socketChannel = SocketChannel.open();
+            socketChannel.configureBlocking(false);
+            socketChannel.connect(new InetSocketAddress(address.address, address.port));
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
     }
 
     static class SocketEngine {
