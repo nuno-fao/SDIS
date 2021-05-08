@@ -27,8 +27,12 @@ peer/RestoreFile.java
  peer.RestoreFile
 peer/Header.java
  peer.Header
+peer/Chord.java
+ peer.Chord
+ peer.Node
 peer/sockets/TcpWriter.java
  peer.sockets.TcpWriter
+ peer.sockets.TcpWriter$1
 test/TestApp.java
  test.TestApp
 peer/RemoteFile.java
@@ -40,5 +44,6 @@ peer/HeaderConcrete.java
 peer/Peer.java
  peer.Peer
 peer/sockets/TcpListener.java
+ peer.sockets.ChannelEngine
  peer.sockets.TcpListener
- peer.sockets.TcpListener$ChannelEngine
+ peer.sockets.TcpListener$1

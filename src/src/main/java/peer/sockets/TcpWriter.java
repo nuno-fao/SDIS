@@ -1,70 +1,66 @@
 package peer.sockets;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
 
 public class TcpWriter implements Runnable {
-    Selector selector = Selector.open();
     String hostname;
     int port;
-    SSLContext context;
-    ConcurrentLinkedDeque<byte[]> stack = new ConcurrentLinkedDeque();
-    AtomicBoolean exit = new AtomicBoolean(false);
 
     SocketChannel socketChannel;
+    byte[] data;
+    ExecutorService pool;
+    ConcurrentLinkedDeque<byte[]> stack = new ConcurrentLinkedDeque<>();
 
-    public TcpWriter(String hostname, int port, SSLContext context) throws IOException {
+    public TcpWriter(String hostname, int port, byte[] data, ExecutorService pool) throws IOException {
         this.hostname = hostname;
         this.port = port;
-        this.context = context;
+        this.data = data;
+        this.pool = pool;
     }
 
-    public void write(byte[] data) {
-        stack.push(data);
-        synchronized (stack) {
-            stack.notifyAll();
-        }
-    }
-
-    public void close() {
-        exit.set(true);
-    }
 
     @Override
     public void run() {
         SSLEngine engine = null;
         try {
-            TcpUtils.SocketEngine s = TcpUtils.CreateTCPChannel(hostname, port, context);
+            TcpUtils.SocketEngine s = TcpUtils.CreateTCPChannel(hostname, port, pool);
             socketChannel = s.socketChannel;
             engine = s.engine;
         } catch (IOException e) {
             e.printStackTrace();
             return;
         }
-        while (!exit.get()) {
-            if (stack.isEmpty()) {
-                try {
-                    synchronized (stack) {
-                        stack.wait();
+        ByteBuffer myAppData = ByteBuffer.allocate(engine.getSession().getApplicationBufferSize());
+        ByteBuffer myNetData = ByteBuffer.allocate(engine.getSession().getPacketBufferSize());
+
+
+        myNetData.clear();
+        myAppData.put(data);
+        myAppData.flip();
+
+        try {
+            var res = engine.wrap(myAppData, myNetData);
+
+            switch (res.getStatus()) {
+                case OK:
+                    myNetData.flip();
+
+                    while (myNetData.hasRemaining()) {
+                        socketChannel.write(myNetData);
                     }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                continue;
+                    engine.closeOutbound();
+                    TcpUtils.Handshake(socketChannel, engine, pool);
+                    socketChannel.close();
+                    break;
             }
-            try {
-                ByteBuffer buffer = ByteBuffer.allocate(engine.getSession().getApplicationBufferSize());
-                engine.wrap(ByteBuffer.wrap(stack.pop()), buffer);
-                socketChannel.write(buffer);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        } catch (Exception e) {
+
         }
+
     }
 }

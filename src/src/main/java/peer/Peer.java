@@ -5,28 +5,40 @@ import peer.sockets.TcpUtils;
 import peer.sockets.TcpWriter;
 import test.RemoteInterface;
 
-import javax.net.ssl.SSLContext;
+import java.io.IOException;
 import java.rmi.RemoteException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static java.lang.Thread.sleep;
 
 public class Peer implements RemoteInterface {
 
     public static void main(String args[]) {
+
+
+        ExecutorService pool = Executors.newFixedThreadPool(10);
         try {
-            SSLContext context = TcpUtils.GetContext("keys/truststore", "keys/server.keys", "123456");
+            TcpUtils.GetContext("keys/truststore", "keys/client.keys", "123456");
             try {
-                TcpListener tcpListener = new TcpListener(context);
+                TcpListener tcpListener = new TcpListener();
                 Thread listener = new Thread(tcpListener);
-                listener.start();
                 tcpListener.addListener("localhost", 34567);
+                listener.start();
             } catch (Exception e) {
                 e.printStackTrace();
             }
-
-            SSLContext ncontext = TcpUtils.GetContext("keys/truststore", "keys/client.keys", "123456");
-            TcpWriter tcpWriter = new TcpWriter("localhost", 34567, ncontext);
-            Thread writer = new Thread(tcpWriter);
-            writer.start();
-            tcpWriter.write("ola".getBytes());
+            pool.execute(() -> {
+                try {
+                    pool.execute(new TcpWriter("localhost", 34567, "trtrdffdsfdsdfdstr".getBytes(), pool));
+                    pool.execute(new TcpWriter("localhost", 34567, "trtsfddddddddddddddrtr".getBytes(), pool));
+                    pool.execute(new TcpWriter("localhost", 34567, "trtsdffffrtr".getBytes(), pool));
+                    pool.execute(new TcpWriter("localhost", 34567, "trsfdddddddddddddddddddddddddddddddddddddtrtr".getBytes(), pool));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            sleep(20000);
         } catch (Exception e) {
             e.printStackTrace();
         }

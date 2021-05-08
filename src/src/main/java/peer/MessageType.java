@@ -83,7 +83,6 @@ public enum MessageType {
     };
 
     /**
-     *
      * @param messageType
      * @return enum element depending on the messageType
      * @throws ParseError
@@ -119,7 +118,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId
@@ -141,7 +139,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId
@@ -160,7 +157,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId
@@ -175,10 +171,9 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
-     * @return  string with a awake message
+     * @return string with a awake message
      */
     public static byte[] createAwake(String version, int senderId) {
         byte a[] = (version + " AWAKE " + senderId + " \r\n\r\n").getBytes();
@@ -186,7 +181,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId
@@ -198,7 +192,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId
@@ -219,7 +212,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId
@@ -231,7 +223,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId
@@ -242,7 +233,6 @@ public enum MessageType {
     }
 
     /**
-     *
      * @param version
      * @param senderId
      * @param fileId

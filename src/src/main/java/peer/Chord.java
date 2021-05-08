@@ -5,6 +5,12 @@ import peer.sockets.TcpUtils;
 import java.util.ArrayList;
 import java.util.List;
 
+
+//todo adicionar:
+//  Find Sucessor
+//  Find Predecessor
+//  Notify
+//
 public class Chord {
     Node successor = null;
     Node predecessor = null;
