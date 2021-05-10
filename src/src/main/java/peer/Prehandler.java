@@ -67,7 +67,7 @@ public class Prehandler implements Runnable {
     private boolean receivedFlag()
     {
         for (int i = (message.length - 1); i >= 0; i--) {
-            if (message[i] == flag)
+            if (message[i] == MessageStuffer.flag)
             {
                 this.portionOfNextMessage = new byte[message.length - i - 1];
                 System.arraycopy(message, i + 1, this.portionOfNextMessage, 0, message.length - i - 1);

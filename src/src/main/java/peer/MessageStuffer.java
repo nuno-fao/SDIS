@@ -1,7 +1,7 @@
 package peer;
 
 public class MessageStuffer {
-    private static byte flag = 0x7e;
+    public static byte flag = 0x7e;
     private static byte esc1 = 0x7d;
     private static byte esc2 = 0x5e;
     private static byte esc3 = 0x5d;
