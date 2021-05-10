@@ -8,18 +8,18 @@ import javax.net.ssl.SSLSocket;
 
 public class Prehandler implements Runnable {
     private SSLSocket socket;
-    private byte flag = 0x7e;
-    private byte esc1 = 0x7d;
-    private byte esc2 = 0x5e;
-    private byte esc3 = 0x5d;
+    private int peerId;
     private byte[] message;
     private int currentMessageSize;
+    private byte[] portionOfNextMessage;
 
-    public Prehandler(SSLSocket socket)
+    public Prehandler(SSLSocket socket, int peerId)
     {
         this.socket = socket;
+        this.peerId = peerId;
         this.currentMessageSize = 512;
         this.message = new byte[currentMessageSize];
+        this.portionOfNextMessage = null;
     }
 
     @Override
@@ -46,7 +46,7 @@ public class Prehandler implements Runnable {
             {
                 if (receivedFlag())
                 {
-                    unstuffMessage();
+                    this.message = MessageStuffer.unstuffMessage(this.message);
                     processMessage();
                 }
             }
@@ -67,37 +67,28 @@ public class Prehandler implements Runnable {
     private boolean receivedFlag()
     {
         for (int i = (message.length - 1); i >= 0; i--) {
-            if (message[i] == flag) return true;
+            if (message[i] == flag)
+            {
+                this.portionOfNextMessage = new byte[message.length - i - 1];
+                System.arraycopy(message, i + 1, this.portionOfNextMessage, 0, message.length - i - 1);
+                return true; 
+            } 
         }
         return false;
     }
 
-    private void unstuffMessage()
-    {
-        for (int i = 0; i < this.message.length; i++) {
-            if (message[i] == this.esc1 && message[i + 1] == this.esc2)
-            {
-                byte[] auxBuffer = new byte[this.message.length - 1];
-                System.arraycopy(this.message, 0, auxBuffer, 0, i);
-                auxBuffer[i] = this.flag;
-                System.arraycopy(this.message, i + 2, auxBuffer, i + 1, this.message.length - i - 2);
-                this.message = auxBuffer;
-            }
-            else if (message[i] == this.esc1 && message[i + 1] == this.esc3)
-            {
-                byte[] auxBuffer = new byte[this.message.length - 1];
-                System.arraycopy(this.message, 0, auxBuffer, 0, i);
-                auxBuffer[i] = this.esc1;
-                System.arraycopy(this.message, i + 2, auxBuffer, i + 1, this.message.length - i - 2);
-                this.message = auxBuffer;
-            }
-        }
-    }
-
     private void processMessage()
     {
-        //TODO
-        //Implement this
+        if (this.portionOfNextMessage != null)
+        {
+            byte[] auxBuffer = new byte[this.message.length + this.portionOfNextMessage.length];
+            System.arraycopy(this.portionOfNextMessage, 0, auxBuffer, 0, this.portionOfNextMessage.length);
+            System.arraycopy(this.message, 0, auxBuffer, this.portionOfNextMessage.length, this.message.length);
+            this.message = auxBuffer;
+        }
+
+        Handler handler = new Handler(this.message, this.peerId);
+        handler.processMessage();
     }
     
 }

@@ -14,8 +14,9 @@ public class UnicastDispatcher implements Runnable
 {
     private SSLServerSocket socket;
     private ExecutorService pool = Executors.newFixedThreadPool(10);
+    private int peerId;
 
-    public UnicastDispatcher(int port)
+    public UnicastDispatcher(int port, int peerId)
     {
         try 
         {
@@ -37,7 +38,7 @@ public class UnicastDispatcher implements Runnable
             try 
             {
                 clientSocket = (SSLSocket) this.socket.accept();
-                this.pool.execute(new Prehandler(clientSocket));
+                this.pool.execute(new Prehandler(clientSocket, this.peerId));
             } 
             catch (IOException e) {
                 System.out.println("Failed to accept a new connection!");
