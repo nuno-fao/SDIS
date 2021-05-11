@@ -11,7 +11,6 @@ public class Prehandler implements Runnable {
     private int peerId;
     private byte[] message;
     private int currentMessageSize;
-    private byte[] portionOfNextMessage;
 
     public Prehandler(SSLSocket socket, int peerId)
     {
@@ -19,7 +18,6 @@ public class Prehandler implements Runnable {
         this.peerId = peerId;
         this.currentMessageSize = 512;
         this.message = new byte[currentMessageSize];
-        this.portionOfNextMessage = null;
     }
 
     @Override
@@ -36,7 +34,7 @@ public class Prehandler implements Runnable {
         }
 
         int currentIndex = 0;
-        while (!receivedFlag())
+        while (true)
         {
             try
             {
@@ -44,11 +42,7 @@ public class Prehandler implements Runnable {
             }
             catch (EOFException e)
             {
-                if (receivedFlag())
-                {
-                    this.message = MessageStuffer.unstuffMessage(this.message);
-                    processMessage();
-                }
+                break;
             }
             catch (IOException e)
             {
@@ -63,33 +57,11 @@ public class Prehandler implements Runnable {
             this.message = auxBuffer;
         }
 
-        this.message = MessageStuffer.unstuffMessage(this.message);
         processMessage();
-    }
-
-    private boolean receivedFlag()
-    {
-        for (int i = (message.length - 1); i >= 0; i--) {
-            if (message[i] == MessageStuffer.flag)
-            {
-                this.portionOfNextMessage = new byte[message.length - i - 1];
-                System.arraycopy(message, i + 1, this.portionOfNextMessage, 0, message.length - i - 1);
-                return true; 
-            } 
-        }
-        return false;
     }
 
     private void processMessage()
     {
-        if (this.portionOfNextMessage != null)
-        {
-            byte[] auxBuffer = new byte[this.message.length + this.portionOfNextMessage.length];
-            System.arraycopy(this.portionOfNextMessage, 0, auxBuffer, 0, this.portionOfNextMessage.length);
-            System.arraycopy(this.message, 0, auxBuffer, this.portionOfNextMessage.length, this.message.length);
-            this.message = auxBuffer;
-        }
-
         Handler handler = new Handler(this.message, this.peerId);
         handler.processMessage();
     }
