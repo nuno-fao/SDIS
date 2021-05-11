@@ -12,8 +12,6 @@ import java.util.concurrent.Executors;
 
 public class Peer implements RemoteInterface {
     private static UnicastDispatcher dispatcher;
-    private static int port = 6666;
-    private static int peerId = 1;
 
     public static void main(String args[]) {
         ExecutorService pool = Executors.newFixedThreadPool(10);
