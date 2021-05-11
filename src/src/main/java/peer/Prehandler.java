@@ -62,6 +62,9 @@ public class Prehandler implements Runnable {
             System.arraycopy(this.message, 0, auxBuffer, 0, this.currentMessageSize - 512);
             this.message = auxBuffer;
         }
+
+        this.message = MessageStuffer.unstuffMessage(this.message);
+        processMessage();
     }
 
     private boolean receivedFlag()
