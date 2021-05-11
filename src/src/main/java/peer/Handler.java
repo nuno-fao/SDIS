@@ -30,37 +30,34 @@ import static java.nio.file.StandardOpenOption.WRITE;
 /**
  * Used as a worker, processes the received messages and sends the response
  */
-public class Handler implements Runnable {
+public class Handler {
     private static AtomicInteger skipped = new AtomicInteger(0);
     static private long time = System.currentTimeMillis();
-    private DatagramPacket packet;
+    private byte[] message;
     private int peerId;
     private ConcurrentHashMap<String, String> standbyBackupList;
 
-    Handler(DatagramPacket packet, int peerId) {
-        this.packet = packet;
+    Handler(byte[] message, int peerId) {
+        this.message = message;
         this.peerId = peerId;
         standbyBackupList = new ConcurrentHashMap<>();
     }
 
-    /**
-     * Processes the read message and sends the response
-     */
-    @Override
-    public void run() {
-        String[] head_body = new String(this.packet.getData()).stripLeading().split("\r\n\r\n", 2);
+    public void processMessage()
+    {
+        String[] head_body = new String(this.message).stripLeading().split("\r\n\r\n", 2);
         byte body[] = null;
-        byte tmp[] = this.packet.getData();
+        byte tmp[] = this.message;
         int i = 0;
-        for (; i < this.packet.getLength() - 3; i++) {
+        for (; i < this.message.length - 3; i++) {
             if (tmp[i] == 0xd && tmp[i + 1] == 0xa && tmp[i + 2] == 0xd && tmp[i + 3] == 0xa) {
                 break;
             }
         }
         i += 4;
         if (head_body.length > 1) {
-            if (this.packet.getLength() > i) {
-                body = Arrays.copyOfRange(this.packet.getData(), i, this.packet.getLength());
+            if (this.message.length > i) {
+                body = Arrays.copyOfRange(this.message, i, this.message.length);
             }
         }
         if (body == null) {
