@@ -1,7 +1,5 @@
 package peer;
 
-import peer.sockets.TcpUtils;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,9 +77,9 @@ public class Chord {
     }
 
     public void CheckPredecessor() {
-        if (!TcpUtils.IsAlive(predecessor.address)) {
-            predecessor = null;
-        }
+        //if (!TcpUtils.IsAlive(predecessor.address)) {
+        //    predecessor = null;
+        //}
     }
 
 }

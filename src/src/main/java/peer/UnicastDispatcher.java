@@ -18,7 +18,8 @@ public class UnicastDispatcher implements Runnable
 
     public UnicastDispatcher(int port, int peerId)
     {
-        try 
+        this.peerId=peerId;
+        try
         {
             this.socket = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(port);
         }
@@ -44,7 +45,6 @@ public class UnicastDispatcher implements Runnable
                 System.out.println("Failed to accept a new connection!");
                 e.printStackTrace();
             }
-            
 
         }
         

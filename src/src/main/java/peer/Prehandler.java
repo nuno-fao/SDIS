@@ -3,6 +3,7 @@ package peer;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.Arrays;
 
 import javax.net.ssl.SSLSocket;
 
@@ -48,8 +49,16 @@ public class Prehandler implements Runnable {
             {
                 System.out.println("Failed to read from input stream in Prehandler!");
                 e.printStackTrace();
+
+                currentIndex += 512;
+                this.currentMessageSize += 512;
+                byte[] auxBuffer = new byte[this.currentMessageSize];
+                System.arraycopy(this.message, 0, auxBuffer, 0, this.currentMessageSize - 512);
+                this.message = auxBuffer;
+
+                break;
             }
-            
+
             currentIndex += 512;
             this.currentMessageSize += 512;
             byte[] auxBuffer = new byte[this.currentMessageSize];
@@ -60,8 +69,10 @@ public class Prehandler implements Runnable {
         processMessage();
     }
 
+
     private void processMessage()
     {
+        System.out.println(new String(this.message));
         Handler handler = new Handler(this.message, this.peerId);
         handler.processMessage();
     }
