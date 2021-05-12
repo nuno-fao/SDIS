@@ -1,110 +1,149 @@
 package peer;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.nio.file.Paths;
+
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 /**
  * Used to store metadata from files that the peer has backed up
  */
 public class RemoteFile {
-    ConcurrentHashMap<Integer, Chunk> chunks = new ConcurrentHashMap<>();
     private String fileId;
+    private String fileName;
     private String serverName;
-    Integer key;
 
-    public RemoteFile(String fileId,String serverName,Integer key) {
+    public RemoteFile(String fileId, String serverName, String fileName) {
         this.fileId = fileId;
         this.serverName = serverName;
-        this.key = key;
+        this.fileName = fileName;
+        try {
+            Files.createDirectories(Path.of(serverName));
+        } catch (IOException e) {
+        }
         try {
             Files.createDirectories(Path.of(serverName + "/.rdata"));
-            Files.createDirectories(Path.of(serverName + "/.rdata/" + fileId));
+        } catch (IOException e) {
+        }
+    }
+
+    public RemoteFile(String fileInfo, String serverName) throws Exception {
+        var i = fileInfo.split(";");
+        if (i.length != 2) {
+            throw new Exception();
+        }
+        this.fileId = i[0];
+        this.fileName = i[1];
+
+        try {
+            Files.createDirectories(Path.of(serverName));
+        } catch (IOException e) {
+        }
+        try {
+            Files.createDirectories(Path.of(serverName + "/.rdata"));
         } catch (IOException e) {
         }
     }
 
     /**
-     * adds peer to the chunk's count
-     * @param chunkNo
-     * @param peerId
+     * deletes the file and metadata
      */
-    void addStored(int chunkNo, int peerId) {
-        if (this.chunks.containsKey(chunkNo)) {
-            if (!this.chunks.get(chunkNo).getPeerList().containsKey(peerId)) {
-                this.chunks.get(chunkNo).getPeerList().put(peerId, true);
-            }
-            this.chunks.get(chunkNo).updateRdata();
-        }
-    }
-
-    /**
-     * deletes the chunks and the metadata stored on the disk
-     */
-    int delete() {
-        int sum = 0;
-        for (Chunk c : chunks.values()) {
-            sum += c.getSize();
-        }
-
+    public void deleteFile() {
         try {
-            Files.walk(Path.of(serverName + "/.rdata/" + this.fileId))
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(File::delete);
-
-            Files.walk(Path.of(serverName + "/" + this.fileId))
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(File::delete);
-
+            Files.deleteIfExists(Path.of(this.serverName + "/" + this.fileName));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return  sum;
+    }
+
+    public String getFileName() {
+        return this.fileName;
     }
 
     /**
-     * removes a chunk
-     * @param chunkId
-     * @return true if it could remove the chunk
-     */
-    public boolean deleteChunk(int chunkId) {
-        if (chunks.containsKey(chunkId)) {
-            chunks.remove(chunkId);
-            Path rInfo = Path.of(serverName + "/.rdata/" + this.fileId + "/" + chunkId);
-            Path chunkData = Path.of(serverName + "/" + this.fileId + "/" + chunkId);
-            if (Files.exists(rInfo) && Files.exists(chunkData)) {
-                try {
-                    Files.delete(rInfo);
-                    Files.delete(chunkData);
-                    return true;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return false;
-    }
-
-
-    /**
-     *
-     * @return map that maps the chunkNo with the respective chunk
-     */
-    public ConcurrentHashMap<Integer, Chunk> getChunks() {
-        return this.chunks;
-    }
-
-    /**
-     *
      * @return file ID
      */
     public String getFileId() {
         return this.fileId;
+    }
+
+    public void writeToFile(byte[] data) {
+        Path path = Paths.get(this.serverName + "/" + this.fileId);
+        AsynchronousFileChannel fileChannel = null;
+        try {
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, CREATE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(data.length);
+
+        buffer.put(data);
+        buffer.flip();
+
+        fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+            @Override
+            public void completed(Integer result, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    public void saveMetadata() {
+        Path path = Paths.get(this.serverName + "/.rdata" + this.fileId);
+        AsynchronousFileChannel fileChannel = null;
+        try {
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, CREATE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        byte[] data = (this.fileId + ";" + this.fileName).getBytes();
+
+        ByteBuffer buffer = ByteBuffer.allocate(data.length);
+
+        buffer.put(data);
+        buffer.flip();
+
+        fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+            @Override
+            public void completed(Integer result, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 }

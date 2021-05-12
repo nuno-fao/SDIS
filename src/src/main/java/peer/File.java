@@ -5,7 +5,6 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
-import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,10 +12,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -25,40 +20,58 @@ import static java.nio.file.StandardOpenOption.WRITE;
  * Used to store the metadata of the local file to backup and make operations on its chunks
  */
 public class File {
+    String serverName;
     private String fileId;
     private String name;
-    private String editionTime = "";
-    private ConcurrentHashMap<Integer, Chunk> chunks = new ConcurrentHashMap<>();
-    private int numChunks = -1;
-    private long time;
-    String serverName;
-    Integer key;
+    private int replicationDegree;
+    private int firstChordPeer;
 
-    public File(String name, String serverName,Integer key) throws IOException {
+    public File(String name, String serverName, int replicationDegree, int firstChordPeer) throws IOException {
         this.name = name;
         Path file = Path.of(name);
         BasicFileAttributes attr = Files.readAttributes(file, BasicFileAttributes.class);
         this.fileId = getHashedString(name + attr.size() + attr.lastModifiedTime().toMillis());
-        this.time = System.currentTimeMillis();
         this.serverName = serverName;
-        this.key = key;
+        this.replicationDegree = replicationDegree;
+        this.firstChordPeer = firstChordPeer;
 
-        Files.createDirectories(Path.of(serverName + "/.ldata"));
-        Files.createDirectories(Path.of(serverName+ "/.ldata/" + this.fileId));
+        try {
+            Files.createDirectories(Path.of(serverName + "/.ldata"));
+        } catch (IOException e) {
+        }
     }
-    public File(String name, String fileId, String serverName,Integer key) throws IOException {
+
+    public File(String name, String fileId, String serverName, int replicationDegree, int firstChordPeer) throws IOException {
         this.name = name;
         this.fileId = fileId;
-        this.time = System.currentTimeMillis();
         this.serverName = serverName;
-        this.key = key;
+        this.replicationDegree = replicationDegree;
+        this.firstChordPeer = firstChordPeer;
 
-        Files.createDirectories(Path.of(serverName + "/.ldata"));
-        Files.createDirectories(Path.of(serverName + "/.ldata/" + this.fileId));
+        try {
+            Files.createDirectories(Path.of(serverName + "/.ldata"));
+        } catch (IOException e) {
+        }
+    }
+
+    public File(String serverName, String fileInfo) throws Exception {
+        var i = fileInfo.split(";");
+        if (i.length != 4) {
+            throw new Exception();
+        }
+        this.fileId = i[0];
+        this.name = i[1];
+        this.replicationDegree = Integer.parseInt(i[2]);
+        this.firstChordPeer = Integer.parseInt(i[3]);
+        this.serverName = serverName;
+
+        try {
+            Files.createDirectories(Path.of(serverName + "/.ldata"));
+        } catch (IOException e) {
+        }
     }
 
     /**
-     *
      * @param s
      * @return the hash result of the param s
      */
@@ -77,181 +90,16 @@ public class File {
         return out.toString();
     }
 
-    /**
-     * Reads the file and retrieves the modification date and the size
-     * @param name (path of the file)
-     * @return
-     */
-    public static String getFileInfo(String name) {
-        if (Files.exists(Path.of(name))) {
-            Path file = Path.of(name);
-
-            BasicFileAttributes attr = null;
-            try {
-                attr = Files.readAttributes(file, BasicFileAttributes.class);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            String editionTime = "" + attr.lastModifiedTime().toMillis();
-            long size = attr.size();
-            return getHashedString(name + (size) + editionTime);
-        }
-        return null;
-    }
 
     /**
-     * returns the time the file was initiated
-     * @return
-     */
-    public long getTime() {
-        return this.time;
-    }
-
-    /**
-     * sets the time the flie was initiated
-     * @param time
-     */
-    public void setTime(long time) {
-        this.time = time;
-    }
-
-    /**
-     * @returnthe number of chunks the file has
-     */
-    public int getNumChunks() {
-        return this.numChunks;
-    }
-
-    /**
-     * Sets the number of chunks of the file
-     * @param numChunks
-     */
-    synchronized public void setNumChunks(int numChunks) {
-        this.numChunks = numChunks;
-    }
-
-    /**
-     *
-     * @return the hash map that maps the chunk ID to the Chunk instance
-     */
-    public ConcurrentHashMap<Integer, Chunk> getChunks() {
-        return this.chunks;
-    }
-
-    /**
-     * Puts a chunk c with mapped with the key
-     * @param key
-     * @param c
-     */
-    public void putChunk(int key, Chunk c) {
-        chunks.put(key, c);
-    }
-
-    /**
-     * Adds the peer to the chunk's peerlist and updates the chunk metadata file
-     * @param chunkNo
-     * @param peerId
-     */
-    void addStored(int chunkNo, int peerId) {
-        if (this.chunks.containsKey(chunkNo)) {
-            Chunk c = this.chunks.get(chunkNo);
-            if (!c.getPeerList().containsKey(peerId)) {
-                c.getPeerList().put(peerId, true);
-                StringBuilder sb = new StringBuilder();
-                sb.append((c.getPeerCount() + ";" + c.getRepDegree() + ";" + this.name + "\n"));
-                for (Iterator<Integer> it = c.getPeerList().keys().asIterator(); it.hasNext(); ) {
-                    sb.append(it.next() + ";");
-                }
-
-
-                Path path = Paths.get(serverName + "/.ldata/" + this.fileId + "/" + chunkNo);
-                AsynchronousFileChannel fileChannel = null;
-                try {
-                    fileChannel = AsynchronousFileChannel.open(
-                            path, WRITE, CREATE);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                byte out[] = sb.toString().getBytes();
-                ByteBuffer buffer = ByteBuffer.allocate(out.length);
-
-                buffer.put(out);
-                buffer.flip();
-
-                fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
-                    @Override
-                    public void completed(Integer result, AsynchronousFileChannel attachment) {
-                        try {
-                            attachment.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable exc, AsynchronousFileChannel attachment) {
-                        try {
-                            attachment.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-                buffer.clear();
-            }
-        }
-    }
-
-    /**
-     * removes peer (peerId) from every chunk
-     * @param peerId
-     */
-    public void removePeerFromChunks(int peerId){
-        for(Chunk chunk:chunks.values()){
-            if (chunk.getPeerList().containsKey(peerId)) {
-                chunk.getPeerList().remove(peerId);
-                if(chunk.getPeerList().size()==0){
-                    chunks.remove(chunk.getChunkNo());
-                }
-            }
-        }
-    }
-
-    /**
-     * rewrites every ldata info of every chunk
-     */
-    public void updateChunks(){
-        for(Chunk chunk:chunks.values()){
-            chunk.updateLdata(this.name);
-        }
-    }
-
-    /**
-     * checks if the peerId has a chunk of this file
-     * @param peerId
-     * @return
-     */
-    public boolean peerHasChunks(int peerId){
-        for(Chunk chunk:chunks.values()){
-            if(chunk.getPeerList().containsKey(peerId)){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     *
      * @param chunkNo
      * @return the perceived replication degree of the chunk (chunkNo)
      */
     public Integer getReplicationDegree(int chunkNo) {
-        return this.chunks.get(chunkNo).getPeerCount();
+        return this.replicationDegree;
     }
 
     /**
-     *
      * @return file unique fileId
      */
     public String getFileId() {
@@ -259,19 +107,47 @@ public class File {
     }
 
     /**
-     *
      * @return file name/path
      */
     public String getName() {
         return this.name;
     }
 
-    /**
-     *
-     * @return file edition time
-     */
-    String getEditionTime() {
-        return this.editionTime;
-    }
+    public void saveMetadata() {
+        Path path = Paths.get(serverName + "/.ldata" + fileId);
+        AsynchronousFileChannel fileChannel = null;
+        try {
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, CREATE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
+        byte[] data = (fileId + ";" + name + ";" + replicationDegree + ";" + firstChordPeer).getBytes();
+
+        ByteBuffer buffer = ByteBuffer.allocate(data.length);
+
+        buffer.put(data);
+        buffer.flip();
+
+        fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+            @Override
+            public void completed(Integer result, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
 }
