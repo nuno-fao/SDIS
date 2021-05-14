@@ -12,20 +12,30 @@ public class TCPWriter {
     private int port;
 
     public TCPWriter(String address, int port) {
-        this.address=address;
-        this.port=port;
+        this.address = address;
+        this.port = port;
 
         try {
-            socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address, port);
+            this.socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address, port);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
     }
 
-    public void write(byte[] message){
+    public static boolean IsAlive(Address address) {
         try {
-            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            SSLSocket socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address.address, address.port);
+        } catch (IOException e) {
+            //e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    public void write(byte[] message) {
+        try {
+            DataOutputStream out = new DataOutputStream(this.socket.getOutputStream());
             out.write(message);
             out.close();
         } catch (IOException e) {
@@ -33,9 +43,9 @@ public class TCPWriter {
         }
     }
 
-    public void close(){
+    public void close() {
         try {
-            socket.close();
+            this.socket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -1,4 +1,5 @@
 package peer;
+
 import test.RemoteInterface;
 
 import java.rmi.RemoteException;
@@ -21,13 +22,13 @@ public class Peer implements RemoteInterface {
         ExecutorService pool = Executors.newFixedThreadPool(10);
 
 
-
         dispatcher = new UnicastDispatcher(port, peerId);
         new Thread(dispatcher).start();
 
-        TCPWriter writer = new TCPWriter("localhost",6666);
+        TCPWriter writer = new TCPWriter("localhost", 6666);
 
         writer.write(("qwertyuiopasdfghjkl").getBytes());
+
         writer.close();
     }
 
