@@ -12,6 +12,7 @@ public class Prehandler implements Runnable {
     private int peerId;
     private byte[] message;
     private int currentMessageSize;
+    private int actualMessageSize;
 
     public Prehandler(SSLSocket socket, int peerId)
     {
@@ -19,6 +20,7 @@ public class Prehandler implements Runnable {
         this.peerId = peerId;
         this.currentMessageSize = 512;
         this.message = new byte[currentMessageSize];
+        this.actualMessageSize = 0;
     }
 
     @Override
@@ -35,15 +37,13 @@ public class Prehandler implements Runnable {
         }
 
         int currentIndex = 0;
+        
+        int numReadBytes;
         while (true)
         {
             try
             {
-                stream.readFully(this.message, currentIndex, 512);
-            }
-            catch (EOFException e)
-            {
-                break;
+                numReadBytes = stream.read(this.message, currentIndex, 512);
             }
             catch (IOException e)
             {
@@ -58,6 +58,8 @@ public class Prehandler implements Runnable {
 
                 break;
             }
+            if (numReadBytes == -1) break;
+            this.actualMessageSize += numReadBytes;
 
             currentIndex += 512;
             this.currentMessageSize += 512;
@@ -72,6 +74,14 @@ public class Prehandler implements Runnable {
 
     private void processMessage()
     {
+        if (this.actualMessageSize < this.message.length)
+        {
+            byte[] auxBuffer = new byte[this.actualMessageSize];
+            System.arraycopy(this.message, 0, auxBuffer, 0,this.actualMessageSize);
+            this.message = auxBuffer;
+        }
+
+        System.out.println(this.message.length);
         System.out.println(new String(this.message));
         Handler handler = new Handler(this.message, this.peerId);
         handler.processMessage();
