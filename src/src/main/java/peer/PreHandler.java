@@ -67,9 +67,6 @@ public class PreHandler implements Runnable {
             System.arraycopy(this.message, 0, auxBuffer, 0, this.actualMessageSize);
             this.message = auxBuffer;
         }
-
-        System.out.println(this.message.length);
-        System.out.println(new String(this.message));
         Handler handler = new Handler(this.message, this.peerId);
         handler.processMessage();
     }
