@@ -21,17 +21,14 @@ public class Chord {
     }
 
     public Node FindSuccessor(Integer id) {
-        if (fingerTable.get(0).id >= id && id > n.id) {
-            return fingerTable.get(0);
+        if (this.fingerTable.get(0).id > id && id >= this.n.id) {
+            return this.fingerTable.get(0);
         } else {
             Node nl;
-            for (int i = fingerTable.size() - 1; i >= 0; i--) {
-                if (n.id < fingerTable.get(i).id && fingerTable.get(i).id < id) {
-                    nl = fingerTable.get(i);
+            for (int i = this.fingerTable.size() - 1; i >= 0; i--) {
+                if (this.n.id < this.fingerTable.get(i).id && this.fingerTable.get(i).id < id) {
+                    nl = this.fingerTable.get(i);
                     break;
-                }
-                if (fingerTable.get(i).id == id) {
-                    return fingerTable.get(i);
                 }
             }
             //todo node nl.find_successor(id)
@@ -46,34 +43,34 @@ public class Chord {
 
     public void Create() {
         this.predecessor = null;
-        this.successor = n;
+        this.successor = this.n;
     }
 
     public void Join(Node nl) {
-        predecessor = null;
-        successor = FindSuccessor(n.id);
+        this.predecessor = null;
+        this.successor = this.FindSuccessor(this.n.id);
     }
 
     public void Stabilize() {
-        Node x = FindPredecessor(successor);
-        if (x.id > n.id && x.id < successor.id) {
-            successor = x;
+        Node x = this.FindPredecessor(this.successor);
+        if (x.id > this.n.id && x.id < this.successor.id) {
+            this.successor = x;
         }
         //todo notify
     }
 
     public void Notify(Node possiblePredecessor) {
-        if (predecessor == null || (possiblePredecessor.id > predecessor.id && possiblePredecessor.id < n.id)) {
-            predecessor = possiblePredecessor;
+        if (this.predecessor == null || (possiblePredecessor.id > this.predecessor.id && possiblePredecessor.id < this.n.id)) {
+            this.predecessor = possiblePredecessor;
         }
     }
 
     public void FixFingers() {
-        next++;
-        if (next > fingerTable.size() - 1) {
-            next = 0;
+        this.next++;
+        if (this.next > this.fingerTable.size() - 1) {
+            this.next = 0;
         }
-        fingerTable.set(next, FindSuccessor(n.id + (int) Math.pow(2, next)));
+        this.fingerTable.set(this.next, this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next)));
     }
 
     public void CheckPredecessor() {
