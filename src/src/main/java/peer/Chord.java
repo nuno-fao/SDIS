@@ -4,11 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-//todo adicionar:
-//  Find Sucessor
-//  Find Predecessor
-//  Notify
-//
+
 public class Chord {
     Node successorPredecessor = null;
     Node successor = null;
@@ -121,7 +117,7 @@ public class Chord {
         String message = "CHORD REQ_PRED " + this.n.toString();
         byte[] messageBytes = message.getBytes();
         writer.write(messageBytes);
-        while (successorPredecessor == null)
+        while (this.successorPredecessor == null)
         {
             try
             {
@@ -213,6 +209,43 @@ public class Chord {
             String[] messageParts = stringMessage.split(" ");
             int index = Integer.parseInt(messageParts[3]);
             this.waitingForResponses[index] = nodeRequested;
+        }
+    }
+
+    public void processMessage(byte[] message)
+    {
+        String stringMessage = new String(message);
+        if (!stringMessage.startsWith("CHORD")) return;
+
+        String secondSegment = stringMessage.split(" ")[1];
+        switch (secondSegment)
+        {
+            case "LOOKUP":
+            {
+                returnSuccessor(message);
+                break;
+            }
+            case "NODE":
+            {
+                setSuccessorForId(message);
+                break;
+            }
+            case "REQ_PRED":
+            {
+                getPredecessor(message);
+                break;
+            }
+            case "GET_PRED":
+            {
+                setSuccessorPredecessor(message);
+                break;
+            }
+            case "NOTIFY":
+            {
+                setPredecessor(message);
+                break;
+            }
+            default: return;
         }
     }
 }
