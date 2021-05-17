@@ -103,7 +103,7 @@ public class Chord {
         if (messageSender != null)
         {
             TCPWriter writer = new TCPWriter(messageSender.address.address, messageSender.address.port);
-            String response = "CHORD GET_PRED " + this.predecessor.address.address + ":" + this.predecessor.address.port + ":" + this.predecessor.id;
+            String response = "CHORD GET_PRED " + this.predecessor.toString();
             byte[] responseBytes = response.getBytes();
             writer.write(responseBytes);
         }
@@ -118,7 +118,7 @@ public class Chord {
     {
         this.successorPredecessor = null;
         TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port);
-        String message = "CHORD REQ_PRED " + this.n.id;
+        String message = "CHORD REQ_PRED " + this.n.toString();
         byte[] messageBytes = message.getBytes();
         writer.write(messageBytes);
         while (successorPredecessor == null)
@@ -138,7 +138,7 @@ public class Chord {
     public void notifySuccThatImPred()
     {
         TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port);
-        String message = "CHORD NOTIFY " + this.n.address.address + ":" + this.n.address.port + ":" + this.n.id;
+        String message = "CHORD NOTIFY " + this.n.toString();
         byte[] messageBytes = message.getBytes();
         writer.write(messageBytes);
     }
@@ -154,11 +154,7 @@ public class Chord {
         String[] strParts = stringMessage.split(" ");
         if (strParts[0].equals("CHORD") && strParts[1].equals(expectedSegment))
         {
-            String[] nodeParts = strParts[2].split(":");
-            String address = nodeParts[0];
-            int port = Integer.parseInt(nodeParts[1]);
-            Integer id = Integer.valueOf(nodeParts[2]);
-            Node node = new Node(address, port, id);
+            Node node = new Node(strParts[2]);
             return node;
         }
         return null;
@@ -172,7 +168,7 @@ public class Chord {
             if (this.lastWaitingIndexUsed == 20) this.lastWaitingIndexUsed = 0;
             index = this.lastWaitingIndexUsed++;   
         }
-        String message = "CHORD LOOKUP " + this.n.address.address + ":" + this.n.address.port + ":" + this.n.id + " " + id + " " + index;
+        String message = "CHORD LOOKUP " + this.n.toString() + " " + id + " " + index;
         TCPWriter writer = new TCPWriter(remoteNode.address.address, remoteNode.address.port);
         byte[] messageBytes = message.getBytes();
         writer.write(messageBytes);
@@ -193,13 +189,31 @@ public class Chord {
 
     public void returnSuccessor(byte[] message)
     {
-        //process reception of LOOKUP
-        //return to original author the successor of the id requested
+        Node messageAuthor = parseMessage(message, "LOOKUP");
+        if (messageAuthor != null)
+        {
+            String stringMessage = new String(message);
+            String[] messageParts = stringMessage.split(" ");
+            Integer id = Integer.valueOf(messageParts[3]);
+            int index = Integer.parseInt(messageParts[4]);
+            Node requestedNode = FindSuccessor(id);
+
+            String response = "CHORD NODE " + requestedNode.toString() + " " + index;
+            TCPWriter writer = new TCPWriter(messageAuthor.address.address, messageAuthor.address.port);
+            writer.write(response.getBytes());
+        }
     }
 
     public void setSuccessorForId(byte[] message)
     {
-        //process reception of NODE
+        Node nodeRequested = parseMessage(message, "NODE");
+        if (nodeRequested != null)
+        {
+            String stringMessage = new String(message);
+            String[] messageParts = stringMessage.split(" ");
+            int index = Integer.parseInt(messageParts[3]);
+            this.waitingForResponses[index] = nodeRequested;
+        }
     }
 }
 
@@ -210,6 +224,22 @@ class Node {
     public Node(String address, int port, Integer id) {
         this.address = new Address(address, port);
         this.id = id;
+    }
+
+    public Node(String stringRepresentation)
+    {
+        String[] parts = stringRepresentation.split(":");
+        String address = parts[0];
+        int port = Integer.parseInt(parts[1]);
+        Integer id = Integer.valueOf(parts[2]);
+        
+        this.address = new Address(address, port);
+        this.id = id;
+    }
+
+    @Override
+    public String toString() {
+        return address.address + ":" + address.port + ":" + id;
     }
 }
 
