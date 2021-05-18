@@ -46,11 +46,11 @@ public class Peer implements RemoteInterface {
         chordHelper = new ChordHelper(chord);
         new Thread(chordHelper).start();
 
-        TCPWriter writer = new TCPWriter("localhost", 6666);
+        // TCPWriter writer = new TCPWriter("localhost", 6666);
 
-        writer.write(("qwertyuiopasdfghjkl").getBytes());
+        // writer.write(("qwertyuiopasdfghjkl").getBytes());
 
-        writer.close();
+        // writer.close();
     }
 
     @Override

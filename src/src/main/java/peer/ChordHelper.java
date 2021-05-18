@@ -1,6 +1,6 @@
 package peer;
 
-public class ChordHelper implements Runnable{
+public class ChordHelper implements Runnable {
     private Chord chord;
 
     public ChordHelper(Chord chord)
@@ -10,19 +10,21 @@ public class ChordHelper implements Runnable{
 
     @Override
     public void run() {
-        chord.Stabilize();
-        chord.FixFingers();
-        chord.CheckPredecessor();
-        try
+        while (true)
         {
-           Thread.sleep(1000); 
+            chord.Stabilize();
+            chord.FixFingers();
+            chord.CheckPredecessor();
+            try
+            {
+                Thread.sleep(1000); 
+            }
+            catch (InterruptedException e)
+            {
+                System.out.println("Couldn't sleep!");
+                e.printStackTrace();
+            }
         }
-        catch (InterruptedException e)
-        {
-            System.out.println("Couldn't sleep!");
-            e.printStackTrace();
-        }
-        
     }
     
 }

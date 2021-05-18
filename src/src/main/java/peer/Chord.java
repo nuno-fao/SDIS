@@ -21,7 +21,7 @@ public class Chord {
     }
 
     public Node FindSuccessor(Integer id) {
-        if (this.n.id < id && this.successor.id >= id) {
+        if ((this.n.id < id && this.successor.id >= id) || this.n.equals(this.successor) || (this.n.id < id && this.successor.id < this.n.id)) {
             return successor;
         } else {
             Node nl = ClosestPrecedingNode(id);
@@ -72,7 +72,14 @@ public class Chord {
         if (this.next > this.fingerTable.size() - 1) {
             this.next = 0;
         }
-        this.fingerTable.set(this.next, this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next)));
+        try
+        {
+            this.fingerTable.set(this.next, this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next)));
+        }
+        catch (IndexOutOfBoundsException e)
+        {
+            this.fingerTable.add(this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next)));
+        }
     }
 
     public void CheckPredecessor() {
@@ -99,9 +106,18 @@ public class Chord {
         if (messageSender != null)
         {
             TCPWriter writer = new TCPWriter(messageSender.address.address, messageSender.address.port);
-            String response = "CHORD GET_PRED " + this.predecessor.toString();
+            String response;
+            if (!this.n.equals(messageSender))
+            {
+                response = "CHORD GET_PRED " + this.predecessor.toString();
+            }
+            else
+            {
+                response = "CHORD GET_PRED " + this.n.toString();
+            }
             byte[] responseBytes = response.getBytes();
             writer.write(responseBytes);
+            writer.close();
         }
     }
 
@@ -117,6 +133,7 @@ public class Chord {
         String message = "CHORD REQ_PRED " + this.n.toString();
         byte[] messageBytes = message.getBytes();
         writer.write(messageBytes);
+        writer.close();
         while (this.successorPredecessor == null)
         {
             try
@@ -137,6 +154,7 @@ public class Chord {
         String message = "CHORD NOTIFY " + this.n.toString();
         byte[] messageBytes = message.getBytes();
         writer.write(messageBytes);
+        writer.close();
     }
 
     public void setPredecessor(byte[] message) {
@@ -168,6 +186,7 @@ public class Chord {
         TCPWriter writer = new TCPWriter(remoteNode.address.address, remoteNode.address.port);
         byte[] messageBytes = message.getBytes();
         writer.write(messageBytes);
+        writer.close();
         waitingForResponses[index] = null;
         while (waitingForResponses[index] == null)
         {
@@ -197,6 +216,7 @@ public class Chord {
             String response = "CHORD NODE " + requestedNode.toString() + " " + index;
             TCPWriter writer = new TCPWriter(messageAuthor.address.address, messageAuthor.address.port);
             writer.write(response.getBytes());
+            writer.close();
         }
     }
 
