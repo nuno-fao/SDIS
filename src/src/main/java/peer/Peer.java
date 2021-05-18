@@ -8,8 +8,9 @@ import java.util.concurrent.Executors;
 
 public class Peer implements RemoteInterface {
     private static UnicastDispatcher dispatcher;
-    private static int port = 6666;
-    private static int peerId = 1;
+    private static ChordHelper chordHelper;
+    // private static int port = 6666;
+    // private static int peerId = 1;
 
 
     public static void main(String args[]) {
@@ -18,12 +19,32 @@ public class Peer implements RemoteInterface {
         System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "123456");
 
+        
+        String address = args[0];
+        int port = Integer.parseInt(args[1]);
+        int id = Integer.parseInt(args[2]);
+
+        Chord chord = new Chord(id, address, port);
+
+        boolean needToCreateCircle = true;
+
+        for (String arg : args) {
+            if (arg.contains(":"))
+            {
+                chord.Join(new Node(arg));
+                needToCreateCircle = false;
+            } 
+        }
+
+        if (needToCreateCircle) chord.Create();
 
         ExecutorService pool = Executors.newFixedThreadPool(10);
 
-
-        dispatcher = new UnicastDispatcher(port, peerId);
+        dispatcher = new UnicastDispatcher(port, id, chord);
         new Thread(dispatcher).start();
+
+        chordHelper = new ChordHelper(chord);
+        new Thread(chordHelper).start();
 
         TCPWriter writer = new TCPWriter("localhost", 6666);
 

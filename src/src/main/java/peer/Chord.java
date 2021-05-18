@@ -50,7 +50,7 @@ public class Chord {
 
     public void Join(Node nl) {
         this.predecessor = null;
-        this.successor = this.FindSuccessor(this.n.id);
+        this.successor = remoteFindSuccessor(nl, this.n.id);
     }
 
     public void Stabilize() {
@@ -232,6 +232,8 @@ public class Chord {
             }
             case "REQ_PRED":
             {
+                Node messageAuthor = new Node(stringMessage.split(" ")[2]);
+                if (messageAuthor.equals(this.n)) return;
                 getPredecessor(message);
                 break;
             }
@@ -273,6 +275,18 @@ class Node {
     @Override
     public String toString() {
         return address.address + ":" + address.port + ":" + id;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) return true;
+        if (obj == null) return false;
+        if (!(obj instanceof Node)) return false;
+
+        Node rhs = (Node) obj;
+
+        return this.id.equals(rhs.id) && this.address.equals(rhs.address);
+
     }
 }
 
