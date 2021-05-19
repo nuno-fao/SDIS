@@ -64,6 +64,17 @@ public class PreHandler implements Runnable {
 
 
     private void processMessage() {
+        try
+        {
+            this.socket.shutdownOutput();
+            this.socket.close(); 
+        }
+        catch (IOException e)
+        {
+            System.out.println("Couldn't close socket in Prehandler!");
+            e.printStackTrace();
+        }
+
         if (this.actualMessageSize < this.message.length) {
             byte[] auxBuffer = new byte[this.actualMessageSize];
             System.arraycopy(this.message, 0, auxBuffer, 0, this.actualMessageSize);

@@ -26,6 +26,9 @@ public class Peer implements RemoteInterface {
 
         Chord chord = new Chord(id, address, port);
 
+        dispatcher = new UnicastDispatcher(port, id, chord);
+        new Thread(dispatcher).start();
+
         boolean needToCreateCircle = true;
 
         for (String arg : args) {
@@ -39,9 +42,6 @@ public class Peer implements RemoteInterface {
         if (needToCreateCircle) chord.Create();
 
         ExecutorService pool = Executors.newFixedThreadPool(10);
-
-        dispatcher = new UnicastDispatcher(port, id, chord);
-        new Thread(dispatcher).start();
 
         chordHelper = new ChordHelper(chord);
         new Thread(chordHelper).start();
