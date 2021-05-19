@@ -3,25 +3,42 @@ package peer;
 import java.util.ArrayList;
 import java.util.List;
 
-
-
 public class Chord {
     Node successorPredecessor = null;
     Node successor = null;
     Node predecessor = null;
     Node n;
     int m = 5;
-    List<Node> fingerTable = new ArrayList<>(m);
+    Node[] fingerTable = new Node[m];
     Node[] waitingForResponses = new Node[20];
     int lastWaitingIndexUsed = 0;
-    private int next = 0;
+    private int next = -1;
 
     public Chord(int id, String address, int port) {
         this.n = new Node(address, port, id);
     }
 
+    private boolean isBetween(Integer smaller, Integer comp, Integer bigger)
+    {
+        if (bigger > smaller)
+        {
+            return comp > smaller && comp <= bigger;
+        }
+        else if (smaller > bigger)
+        {
+            return comp <= bigger || comp > smaller;
+        }
+        else
+        {
+            if (smaller == bigger && smaller == this.n.id) return true;
+            return this.n.equals(this.successor) && this.predecessor == null;
+        } 
+    }
+
     public Node FindSuccessor(Integer id) {
-        if ((this.n.id < id && this.successor.id >= id) || this.n.equals(this.successor) || (this.n.id < id && this.successor.id < this.n.id)) {
+        if (id == this.n.id) return this.n;
+
+        if (isBetween(n.id, id, successor.id)) {
             return successor;
         } else {
             Node nl = ClosestPrecedingNode(id);
@@ -31,9 +48,10 @@ public class Chord {
 
     public Node ClosestPrecedingNode(Integer id)
     {
-        for (int i = this.fingerTable.size() - 1; i >= 0; i--) {
-            Node currentNode = this.fingerTable.get(i);
-            if (currentNode.id > this.n.id && currentNode.id <= id) return currentNode;
+        for (int i = this.fingerTable.length - 1; i >= 0; i--) {
+            Node currentNode = this.fingerTable[i];
+            if (currentNode == null) continue;
+            if (isBetween(n.id, currentNode.id, id)) return currentNode;
         }
         return this.n;
     }
@@ -46,40 +64,36 @@ public class Chord {
     public void Create() {
         this.predecessor = null;
         this.successor = this.n;
+        this.fingerTable[0] = this.successor;
     }
 
     public void Join(Node nl) {
         this.predecessor = null;
         this.successor = remoteFindSuccessor(nl, this.n.id);
+        this.fingerTable[0] = this.successor;
     }
 
     public void Stabilize() {
         Node x = getSuccessorPredecessor();
-        if (x.id > this.n.id && (x.id <= this.successor.id || this.successor.id <= this.n.id)) {
+        if (isBetween(n.id, x.id, successor.id)) {
             this.successor = x;
+            this.fingerTable[0] = this.successor;
         }
         notifySuccThatImPred();
     }
 
     public void Notify(Node possiblePredecessor) {
-        if (this.predecessor == null || (possiblePredecessor.id > this.predecessor.id && (possiblePredecessor.id <= this.n.id || this.predecessor.id >= this.n.id))) {
-            this.predecessor = possiblePredecessor;
+        if (this.predecessor == null || isBetween(this.predecessor.id, possiblePredecessor.id, n.id)) {
+            if (!possiblePredecessor.equals(this.n)) this.predecessor = possiblePredecessor;
         }
     }
 
     public void FixFingers() {
         this.next++;
-        if (this.next > this.fingerTable.size() - 1) {
+        if (this.next > this.fingerTable.length - 1) {
             this.next = 0;
         }
-        try
-        {
-            this.fingerTable.set(this.next, this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next)));
-        }
-        catch (IndexOutOfBoundsException e)
-        {
-            this.fingerTable.add(this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next)));
-        }
+        this.fingerTable[this.next] = this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next));
     }
 
     public void CheckPredecessor() {
@@ -138,7 +152,7 @@ public class Chord {
         {
             try
             {
-               Thread.sleep(1000); 
+               Thread.sleep(200); 
             }
             catch (InterruptedException e)
             {
@@ -192,7 +206,7 @@ public class Chord {
         {
             try
             {
-                Thread.sleep(1000);
+                Thread.sleep(200);
             }
             catch (InterruptedException e)
             {
@@ -252,8 +266,6 @@ public class Chord {
             }
             case "REQ_PRED":
             {
-                Node messageAuthor = new Node(stringMessage.split(" ")[2]);
-                if (messageAuthor.equals(this.n)) return;
                 getPredecessor(message);
                 break;
             }
