@@ -55,14 +55,14 @@ public class Chord {
 
     public void Stabilize() {
         Node x = getSuccessorPredecessor();
-        if (x.id > this.n.id && x.id <= this.successor.id) {
+        if (x.id > this.n.id && (x.id <= this.successor.id || this.successor.id <= this.n.id)) {
             this.successor = x;
         }
         notifySuccThatImPred();
     }
 
     public void Notify(Node possiblePredecessor) {
-        if (this.predecessor == null || (possiblePredecessor.id > this.predecessor.id && possiblePredecessor.id <= this.n.id)) {
+        if (this.predecessor == null || (possiblePredecessor.id > this.predecessor.id && (possiblePredecessor.id <= this.n.id || this.predecessor.id >= this.n.id))) {
             this.predecessor = possiblePredecessor;
         }
     }
@@ -107,7 +107,7 @@ public class Chord {
         {
             TCPWriter writer = new TCPWriter(messageSender.address.address, messageSender.address.port);
             String response;
-            if (!this.n.equals(messageSender))
+            if (this.predecessor != null)
             {
                 response = "CHORD GET_PRED " + this.predecessor.toString();
             }
