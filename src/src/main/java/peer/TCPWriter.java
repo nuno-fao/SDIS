@@ -23,6 +23,13 @@ public class TCPWriter {
 
     }
 
+    public TCPWriter(String address, int port, boolean shouldNotCatchExceptions) throws IOException {
+        this.address = address;
+        this.port = port;
+
+        this.socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address, port);
+    }
+
     public static boolean IsAlive(Address address) {
         try {
             SSLSocket socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address.address, address.port);

@@ -1,12 +1,15 @@
 package peer;
 
+import java.io.IOException;
+import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Chord {
-    Node successorPredecessor = null;
-    Node successor = null;
-    Node predecessor = null;
+    private Node successorPredecessor = null;
+    private Node successor = null;
+    private Node predecessor = null;
+    private Node sucessorSuccessor = null;
     Node n;
     int m = 5;
     Node[] fingerTable = new Node[m];
@@ -75,7 +78,7 @@ public class Chord {
 
     public void Stabilize() {
         Node x = getSuccessorPredecessor();
-        if (isBetween(n.id, x.id, successor.id)) {
+        if (x != null && isBetween(n.id, x.id, successor.id)) {
             this.successor = x;
             this.fingerTable[0] = this.successor;
         }
@@ -143,32 +146,51 @@ public class Chord {
     public Node getSuccessorPredecessor()
     {
         this.successorPredecessor = null;
-        TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port);
-        String message = "CHORD REQ_PRED " + this.n.toString();
-        byte[] messageBytes = message.getBytes();
-        writer.write(messageBytes);
-        writer.close();
-        while (this.successorPredecessor == null)
+        try
         {
-            try
-            {
-               Thread.sleep(200); 
-            }
-            catch (InterruptedException e)
-            {
+            TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port, true);
+            String message = "CHORD REQ_PRED " + this.n.toString();
+            byte[] messageBytes = message.getBytes();
+            writer.write(messageBytes);
+            writer.close();
 
+            while (this.successorPredecessor == null)
+            {
+                try
+                {
+                Thread.sleep(200); 
+                }
+                catch (InterruptedException e)
+                {
+
+                }
             }
+            return successorPredecessor;
         }
-        return successorPredecessor;
+        catch (IOException e)
+        {
+            return null;
+        }
     }
 
     public void notifySuccThatImPred()
     {
-        TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port);
-        String message = "CHORD NOTIFY " + this.n.toString();
-        byte[] messageBytes = message.getBytes();
-        writer.write(messageBytes);
-        writer.close();
+        try
+        {
+            TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+            String message = "CHORD NOTIFY " + this.n.toString();
+            byte[] messageBytes = message.getBytes();
+            writer.write(messageBytes);
+            writer.close();
+        }
+        catch (IOException e)
+        {
+            if (this.sucessorSuccessor != null)
+            {
+                this.successor = this.sucessorSuccessor;
+                this.fingerTable[0] = this.successor;
+            }
+        }
     }
 
     public void setPredecessor(byte[] message) {
@@ -246,9 +268,48 @@ public class Chord {
         }
     }
 
+    public void requestSuccessorSuccessor()
+    {
+        try
+        {
+            TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+            String message = "CHORD REQ_SUCC " + this.n.toString();
+            writer.write(message.getBytes());
+            writer.close();
+        }
+        catch (IOException e)
+        {
+            if (this.sucessorSuccessor != null)
+            {
+                this.successor = this.sucessorSuccessor;
+                this.fingerTable[0] = this.successor;
+            }
+        }
+
+    }
+
+    public void setSuccessorSuccessor(byte[] message)
+    {
+        Node successorSuccessor = this.parseMessage(message, "GET_SUCC");
+        if (successorSuccessor != null) this.sucessorSuccessor = successorSuccessor;
+    }
+
+    public void getSuccessor(byte[] message)
+    {
+        Node messageSender = this.parseMessage(message, "REQ_SUCC");
+        if (messageSender != null)
+        {
+            TCPWriter writer = new TCPWriter(messageSender.address.address, messageSender.address.port);
+            String response = "CHORD GET_SUCC " + this.successor.toString();
+            writer.write(response.getBytes());
+            writer.close();
+        }
+    }
+
     public void processMessage(byte[] message)
     {
         String stringMessage = new String(message);
+        System.out.println(stringMessage);
         if (!stringMessage.startsWith("CHORD")) return;
 
         String secondSegment = stringMessage.split(" ")[1];
@@ -277,6 +338,16 @@ public class Chord {
             case "NOTIFY":
             {
                 setPredecessor(message);
+                break;
+            }
+            case "REQ_SUCC":
+            {
+                getSuccessor(message);
+                break;
+            }
+            case "GET_SUCC":
+            {
+                setSuccessorSuccessor(message);
                 break;
             }
             default: return;
