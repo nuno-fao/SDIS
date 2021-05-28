@@ -12,7 +12,7 @@ public class Chord {
     private Node predecessor = null;
     private Node sucessorSuccessor = null;
     Node n;
-    int m = 5;
+    public static int m = 5;
     Node[] fingerTable = new Node[m];
     Node[] waitingForResponses = new Node[50];
     int lastWaitingIndexUsed = 0;

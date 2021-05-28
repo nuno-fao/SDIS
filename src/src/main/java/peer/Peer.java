@@ -2,7 +2,11 @@ package peer;
 
 import test.RemoteInterface;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.rmi.RemoteException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -22,7 +26,19 @@ public class Peer implements RemoteInterface {
         
         String address = args[0];
         int port = Integer.parseInt(args[1]);
-        int id = Integer.parseInt(args[2]);
+        int id = 0;
+
+        try
+        {
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            byte[] digest = md.digest((address + ":" + port).getBytes());
+            BigInteger num = new BigInteger(1, digest);
+            id = num.mod(BigDecimal.valueOf(Math.pow(2, Chord.m)).toBigInteger()).intValue();
+        }
+        catch (NoSuchAlgorithmException e)
+        {
+            System.out.println("Invalid algorithm");
+        }
 
         Chord chord = new Chord(id, address, port);
 
