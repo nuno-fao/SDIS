@@ -36,15 +36,20 @@ public class Handler {
     private byte[] message;
     private int peerId;
     private ConcurrentHashMap<String, String> standbyBackupList;
+    private Chord chord;
 
-    Handler(byte[] message, int peerId) {
+    Handler(byte[] message, int peerId, Chord chord) {
         this.message = message;
         this.peerId = peerId;
         standbyBackupList = new ConcurrentHashMap<>();
+        this.chord = chord;
     }
 
     public void processMessage()
     {
+        String stringMessage = new String(this.message);
+        if (stringMessage.startsWith("CHORD")) chord.processMessage(this.message);
+
         String[] head_body = new String(this.message).stripLeading().split("\r\n\r\n", 2);
         byte body[] = null;
         byte tmp[] = this.message;

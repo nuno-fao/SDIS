@@ -11,13 +11,15 @@ public class PreHandler implements Runnable {
     private byte[] message;
     private int currentMessageSize;
     private int actualMessageSize;
+    private Chord chord;
 
-    public PreHandler(SSLSocket socket, int peerId) {
+    public PreHandler(SSLSocket socket, int peerId, Chord chord) {
         this.socket = socket;
         this.peerId = peerId;
         this.currentMessageSize = bufferSize;
         this.message = new byte[this.currentMessageSize];
         this.actualMessageSize = 0;
+        this.chord = chord;
     }
 
     @Override
@@ -62,12 +64,23 @@ public class PreHandler implements Runnable {
 
 
     private void processMessage() {
+        try
+        {
+            this.socket.shutdownOutput();
+            this.socket.close(); 
+        }
+        catch (IOException e)
+        {
+            System.out.println("Couldn't close socket in Prehandler!");
+            e.printStackTrace();
+        }
+
         if (this.actualMessageSize < this.message.length) {
             byte[] auxBuffer = new byte[this.actualMessageSize];
             System.arraycopy(this.message, 0, auxBuffer, 0, this.actualMessageSize);
             this.message = auxBuffer;
         }
-        Handler handler = new Handler(this.message, this.peerId);
+        Handler handler = new Handler(this.message, this.peerId, this.chord);
         handler.processMessage();
     }
 
