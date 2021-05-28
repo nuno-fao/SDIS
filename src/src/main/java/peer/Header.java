@@ -5,21 +5,11 @@ public interface Header {
 
     void setMessageType(MessageType messageType);
 
-    String getVersion();
 
-    void setVersion(String version);
 
     String getFileID();
 
     void setFileID(String fileID);
-
-    Integer getSenderID();
-
-    void setSenderID(Integer senderID);
-
-    Integer getChunkNo();
-
-    void setChunkNo(Integer chunkNo);
 
     Integer getReplicationDeg();
 

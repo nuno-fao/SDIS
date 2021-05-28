@@ -7,8 +7,8 @@ import java.util.List;
  * Implements Header interface, used to Process the header messages
  */
 public class HeaderConcrete implements Header {
-    private String version, fileID, address;
-    private Integer senderID, chunkNo, replicationDeg, port;
+    private String fileID, address;
+    private Integer replicationDeg, port;
 
     private MessageType messageType;
 
@@ -32,44 +32,16 @@ public class HeaderConcrete implements Header {
      * @param headerMessage received message
      * @return loist of headers on the received message
      */
-    static List<Header> getHeaders(String headerMessage) {
+    static Header getHeaders(String headerMessage) {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
         List<Header> outList = new ArrayList<>();
-        Header localHeader;
-        int i = 0;
-        while (true) {
-            try {
-
-                if (argsList.length == 0) {
-                    throw new ParseError();
-                }
-                localHeader = new HeaderConcrete();
-                if (argsList.length < 2) {
-                    throw new ParseError();
-                }
-                localHeader.setVersion(argsList[0]);
-                localHeader.setMessageType(MessageType.parseMessageType(argsList[1]));
-                int lIndex = localHeader.getMessageType().process(localHeader, argsList);
-
-                //se chegou ao fim
-                if (argsList[lIndex].matches(" *(\r\n){1,2}[\\s\\S]*")) {
-                    if (argsList[lIndex].matches(" *\r\n\r\n[\\s\\S]*")) {
-                        outList.add(localHeader);
-                        return outList;
-                    }
-                } else {
-                    throw new ParseError();
-                }
-                //limpa os elementos já processados para ler o proximo header
-                argsList = getSubArray(argsList, lIndex);
-                outList.add(localHeader);
-            } catch (Exception | ParseError e) {
-                return new ArrayList<>();
-            }
-            i++;
-            if(i>200)
-                return outList;
+        Header localHeader = new HeaderConcrete();
+        try {
+            localHeader.getMessageType().process(localHeader, argsList);
+        } catch (ParseError parseError) {
+            parseError.printStackTrace();
         }
+        return localHeader;
     }
 
     @Override
@@ -82,15 +54,6 @@ public class HeaderConcrete implements Header {
         this.messageType = messageType;
     }
 
-    @Override
-    public String getVersion() {
-        return this.version;
-    }
-
-    @Override
-    public void setVersion(String version) {
-        this.version = version;
-    }
 
     @Override
     public String getFileID() {
@@ -102,25 +65,6 @@ public class HeaderConcrete implements Header {
         this.fileID = fileID;
     }
 
-    @Override
-    public Integer getSenderID() {
-        return this.senderID;
-    }
-
-    @Override
-    public void setSenderID(Integer senderID) {
-        this.senderID = senderID;
-    }
-
-    @Override
-    public Integer getChunkNo() {
-        return this.chunkNo;
-    }
-
-    @Override
-    public void setChunkNo(Integer chunkNo) {
-        this.chunkNo = chunkNo;
-    }
 
     @Override
     public Integer getReplicationDeg() {

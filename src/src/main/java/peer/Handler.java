@@ -31,18 +31,17 @@ import static java.nio.file.StandardOpenOption.WRITE;
  * Used as a worker, processes the received messages and sends the response
  */
 public class Handler {
-    private static AtomicInteger skipped = new AtomicInteger(0);
-    static private long time = System.currentTimeMillis();
     private byte[] message;
     private int peerId;
-    private ConcurrentHashMap<String, String> standbyBackupList;
     private Chord chord;
+    private Address address;
+    private ConcurrentHashMap<String,File> localFiles = new ConcurrentHashMap<>();
 
-    Handler(byte[] message, int peerId, Chord chord) {
+    Handler(byte[] message, int peerId, Chord chord,Address address) {
         this.message = message;
         this.peerId = peerId;
-        standbyBackupList = new ConcurrentHashMap<>();
         this.chord = chord;
+        this.address = address;
     }
 
     public void processMessage()
@@ -50,34 +49,52 @@ public class Handler {
         String stringMessage = new String(this.message);
         if (stringMessage.startsWith("CHORD")) chord.processMessage(this.message);
 
-        String[] head_body = new String(this.message).stripLeading().split("\r\n\r\n", 2);
-        byte body[] = null;
-        byte tmp[] = this.message;
-        int i = 0;
-        for (; i < this.message.length - 3; i++) {
-            if (tmp[i] == 0xd && tmp[i + 1] == 0xa && tmp[i + 2] == 0xd && tmp[i + 3] == 0xa) {
+        String[] header = new String(this.message).stripLeading().split( " ", 2);
+        Header headers = HeaderConcrete.getHeaders(header[0]);
+        if(localFiles.contains(headers.getFileID())){
+            return;
+        }
+        switch (headers.getMessageType()){
+            case GETFILE: {
+                new GetFileHandler();
+                break;
+            }
+            case PUTFILE: {
+                new PutFileHandler();
+                break;
+            }
+            case DELETE: {
+                new DeleteHandler();
                 break;
             }
         }
-        i += 4;
-        if (head_body.length > 1) {
-            if (this.message.length > i) {
-                body = Arrays.copyOfRange(this.message, i, this.message.length);
-            }
-        }
-        if (body == null) {
-            body = "".getBytes();
-        }
-
-        List<Header> headers = HeaderConcrete.getHeaders(head_body[0] + " \r\n\r\n");
-
-        for (Header header : headers) {
-            if (header.getSenderID() == this.peerId) {
-                return;
-            }
-        }
     }
+}
+
+class PutFileHandler{
+    public PutFileHandler() {
+
+    }
+}
 
 
+class GetFileHandler{
+    private String fileId;
+    private String address;
+    private int port;
+    private ConcurrentHashMap<String,File> localFiles;
 
+    public GetFileHandler(String fileId, String address, int port, ConcurrentHashMap<String,File> localFiles) {
+        this.fileId = fileId;
+        this.address = address;
+        this.port = port;
+        this.localFiles = localFiles;
+
+
+    }
+}
+
+class DeleteHandler {
+    public DeleteHandler() {
+    }
 }

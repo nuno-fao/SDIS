@@ -74,13 +74,12 @@ public class PreHandler implements Runnable {
             System.out.println("Couldn't close socket in Prehandler!");
             e.printStackTrace();
         }
-
         if (this.actualMessageSize < this.message.length) {
             byte[] auxBuffer = new byte[this.actualMessageSize];
             System.arraycopy(this.message, 0, auxBuffer, 0, this.actualMessageSize);
             this.message = auxBuffer;
         }
-        Handler handler = new Handler(this.message, this.peerId, this.chord);
+        Handler handler = new Handler(this.message, this.peerId, this.chord,new Address(this.socket.getLocalAddress().getHostAddress(),0));
         handler.processMessage();
     }
 

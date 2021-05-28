@@ -23,7 +23,8 @@ public class Peer implements RemoteInterface {
         System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "123456");
 
-        
+
+        //ves o que escrevo
         String address = args[0];
         int port = Integer.parseInt(args[1]);
         int id = 0;
