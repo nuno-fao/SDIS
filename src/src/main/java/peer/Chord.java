@@ -1,5 +1,6 @@
 package peer;
 
+import java.io.IOError;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.ArrayList;
@@ -13,7 +14,7 @@ public class Chord {
     Node n;
     int m = 5;
     Node[] fingerTable = new Node[m];
-    Node[] waitingForResponses = new Node[20];
+    Node[] waitingForResponses = new Node[50];
     int lastWaitingIndexUsed = 0;
     private int next = -1;
 
@@ -21,7 +22,7 @@ public class Chord {
         this.n = new Node(address, port, id);
     }
 
-    private boolean isBetween(Integer smaller, Integer comp, Integer bigger)
+    public boolean isBetween(Integer smaller, Integer comp, Integer bigger)
     {
         if (bigger > smaller)
         {
@@ -39,13 +40,13 @@ public class Chord {
     }
 
     public Node FindSuccessor(Integer id) {
-        if (id == this.n.id) return this.n;
-
-        if (isBetween(n.id, id, successor.id)) {
+        Integer processedId = id % ((int) (Math.pow(2, m)));
+        if (processedId == this.n.id) return this.n;
+        if (isBetween(n.id, processedId, successor.id)) {
             return successor;
         } else {
-            Node nl = ClosestPrecedingNode(id);
-            return remoteFindSuccessor(nl, id);
+            Node nl = ClosestPrecedingNode(processedId);
+            return remoteFindSuccessor(nl, processedId);
         }
     }
 
@@ -158,7 +159,7 @@ public class Chord {
             {
                 try
                 {
-                Thread.sleep(200); 
+                Thread.sleep(50); 
                 }
                 catch (InterruptedException e)
                 {
@@ -198,7 +199,7 @@ public class Chord {
         if (possiblePredecessor != null) this.Notify(possiblePredecessor);
     }
 
-    private Node parseMessage(byte[] message, String expectedSegment)
+    public Node parseMessage(byte[] message, String expectedSegment)
     {
         String stringMessage = new String(message);
         String[] strParts = stringMessage.split(" ");
@@ -210,32 +211,96 @@ public class Chord {
         return null;
     }
 
-    private Node remoteFindSuccessor(Node remoteNode, Integer id)
+    public Node remoteFindSuccessor(Node remoteNode, Integer id)
     {
-        int index;
-        synchronized (this)
+        try
         {
-            if (this.lastWaitingIndexUsed == 20) this.lastWaitingIndexUsed = 0;
-            index = this.lastWaitingIndexUsed++;   
+            TCPWriter writer = new TCPWriter(remoteNode.address.address, remoteNode.address.port, true);
+            int index;
+            synchronized (this)
+            {
+                if (this.lastWaitingIndexUsed == 50) this.lastWaitingIndexUsed = 0;
+                index = this.lastWaitingIndexUsed++;   
+            }
+            String message = "CHORD LOOKUP " + this.n.toString() + " " + id + " " + index;
+            byte[] messageBytes = message.getBytes();
+            writer.write(messageBytes, true);
+            writer.close();
+            waitingForResponses[index] = null;
+            while (waitingForResponses[index] == null)
+            {
+                try
+                {
+                    Thread.sleep(50);
+                }
+                catch (InterruptedException e)
+                {
+
+                }
+            }
+            return waitingForResponses[index];
         }
-        String message = "CHORD LOOKUP " + this.n.toString() + " " + id + " " + index;
-        TCPWriter writer = new TCPWriter(remoteNode.address.address, remoteNode.address.port);
-        byte[] messageBytes = message.getBytes();
-        writer.write(messageBytes);
-        writer.close();
-        waitingForResponses[index] = null;
-        while (waitingForResponses[index] == null)
+        catch (IOException e)
         {
             try
             {
-                Thread.sleep(200);
-            }
-            catch (InterruptedException e)
-            {
+                TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port, true);
+                int index;
+                synchronized (this)
+                {
+                    if (this.lastWaitingIndexUsed == 50) this.lastWaitingIndexUsed = 0;
+                    index = this.lastWaitingIndexUsed++;   
+                }
+                String message = "CHORD LOOKUP " + this.n.toString() + " " + id + " " + index;
+                byte[] messageBytes = message.getBytes();
+                writer.write(messageBytes, true);
+                writer.close();
+                waitingForResponses[index] = null;
+                while (waitingForResponses[index] == null)
+                {
+                    try
+                    {
+                        Thread.sleep(50);
+                    }
+                    catch (InterruptedException e2)
+                    {
 
+                    }
+                }
+                return waitingForResponses[index];
             }
+            catch (IOException e3)
+            {
+                this.successor = this.sucessorSuccessor;
+                this.fingerTable[0] = this.successor;
+                TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port);
+                int index;
+                synchronized (this)
+                {
+                    if (this.lastWaitingIndexUsed == 50) this.lastWaitingIndexUsed = 0;
+                    index = this.lastWaitingIndexUsed++;   
+                }
+                String message = "CHORD LOOKUP " + this.n.toString() + " " + id + " " + index;
+                byte[] messageBytes = message.getBytes();
+                writer.write(messageBytes);
+                writer.close();
+                waitingForResponses[index] = null;
+                while (waitingForResponses[index] == null)
+                {
+                    try
+                    {
+                        Thread.sleep(50);
+                    }
+                    catch (InterruptedException e2)
+                    {
+
+                    }
+                }
+                return waitingForResponses[index];
+            }
+            
         }
-        return waitingForResponses[index];
+        
     }
 
     public void returnSuccessor(byte[] message)

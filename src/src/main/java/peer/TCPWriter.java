@@ -50,6 +50,12 @@ public class TCPWriter {
         }
     }
 
+    public void write(byte[] message, boolean shouldThrow) throws IOException{
+        DataOutputStream out = new DataOutputStream(this.socket.getOutputStream());
+        out.write(message);
+        out.close();
+    }
+
     public void close() {
         try {
             this.socket.close();
