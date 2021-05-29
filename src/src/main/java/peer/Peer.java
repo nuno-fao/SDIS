@@ -9,16 +9,43 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Peer implements RemoteInterface {
-    private static UnicastDispatcher dispatcher;
-    private static ChordHelper chordHelper;
+    private UnicastDispatcher dispatcher;
+    private ChordHelper chordHelper;
+    private ConcurrentHashMap<String,File> localFiles;
+    private ConcurrentHashMap<String, RemoteFile> localCopies;
+    private AtomicLong maxSize;
+    private AtomicLong currentSize;
 
+    public Peer(int port, int id, Chord chord){
+
+        localFiles = new ConcurrentHashMap<>();
+        localCopies = new ConcurrentHashMap<>();
+        maxSize = new AtomicLong(-1);
+        currentSize = new AtomicLong(0);
+
+        this.dispatcher = new UnicastDispatcher(port, id, chord, localFiles, localCopies, maxSize, currentSize);
+    }
+
+    public void setChordHelper(ChordHelper chordHelper){
+        this.chordHelper = chordHelper;
+    }
+
+    public void start(){
+        new Thread(dispatcher).start();
+        new Thread(chordHelper).start();
+    }
 
     public static void main(String args[]) throws IOException {
         System.setProperty("javax.net.ssl.keyStore", "keys/server.keys");
@@ -44,8 +71,7 @@ public class Peer implements RemoteInterface {
 
         Chord chord = new Chord(id, address, port);
 
-        dispatcher = new UnicastDispatcher(port, id, chord);
-        new Thread(dispatcher).start();
+        Peer peer = new Peer(port, id, chord);
 
         boolean needToCreateCircle = true;
 
@@ -61,8 +87,9 @@ public class Peer implements RemoteInterface {
 
         ExecutorService pool = Executors.newFixedThreadPool(10);
 
-        chordHelper = new ChordHelper(chord);
-        new Thread(chordHelper).start();
+        peer.setChordHelper( new ChordHelper(chord));
+
+        peer.start();
 
         System.out.println(port);
         if(port == 8000){
@@ -83,17 +110,71 @@ public class Peer implements RemoteInterface {
 
     @Override
     public String Backup(String filename, int replicationDegree) throws RemoteException {
-        return null;
+        Path newFilePath = Paths.get(filename);
+        if(Files.exists(newFilePath)){
+            long size = 0;
+            try {
+                size = Files.size(newFilePath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try{
+                File f = new File(filename,String.valueOf(replicationDegree));
+                if(localFiles.containsKey(f.getFileId())){
+                    return "File "+filename + " already bakced up";
+                }
+                for (File file : localFiles.values()) {
+                    if (filename.compareTo(file.getName()) == 0) {
+                        //TODO delete the file that is already backed up
+                        break;
+                    }
+                }
+                localFiles.put(f.getFileId(),f);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+        //TODO save file metadata && send PUTFILE message
+        return "File "+filename + " bakced up successfully";
     }
 
     @Override
     public boolean Restore(String filename) throws RemoteException {
-        return false;
+
+        String fileID = null;
+        for (File file : localFiles.values()) {
+            if (filename.compareTo(file.getName()) == 0) {
+                fileID = file.getFileId();
+            }
+        }
+
+        if (fileID == null) {
+            return false;
+        }
+
+        //TODO send GETFILE message to first chord peer
+        return true;
     }
 
     @Override
     public boolean Delete(String filename) throws RemoteException {
-        return false;
+        String fileID = null;
+        for (File file : localFiles.values()) {
+            if (filename.compareTo(file.getName()) == 0) {
+                fileID = file.getFileId();
+            }
+        }
+        if (fileID == null) {
+            return false;
+        }
+
+        //TODO send DELETE message to first chord peer (with replication degree)
+
+        localFiles.remove(fileID);
+
+        return true;
     }
 
     @Override
@@ -103,6 +184,7 @@ public class Peer implements RemoteInterface {
 
     @Override
     public String State() throws RemoteException {
+
         return null;
     }
 }

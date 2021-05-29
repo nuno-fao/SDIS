@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -25,14 +26,20 @@ public class Handler {
     private int peerId;
     private Chord chord;
     private Address address;
-    private ConcurrentHashMap<String,File> localFiles = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<String, RemoteFile> localCopies = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String,File> localFiles;
+    private ConcurrentHashMap<String, RemoteFile> localCopies;
+    private AtomicLong maxSize;
+    private AtomicLong currentSize;
 
-    Handler(byte[] message, int peerId, Chord chord,Address address) {
+    Handler(byte[] message, int peerId, Chord chord,Address address, ConcurrentHashMap<String,File> localFiles, ConcurrentHashMap<String,RemoteFile> localCopies,AtomicLong maxSize, AtomicLong currentSize) {
         this.message = message;
         this.peerId = peerId;
         this.chord = chord;
         this.address = address;
+        this.localFiles = localFiles;
+        this.localCopies = localCopies;
+        this.maxSize = maxSize;
+        this.currentSize = currentSize;
     }
 
     public void processMessage()
