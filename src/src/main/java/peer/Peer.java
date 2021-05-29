@@ -8,13 +8,13 @@ import javax.net.ssl.SSLSocket;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -178,13 +178,50 @@ public class Peer implements RemoteInterface {
     }
 
     @Override
-    public void Reclaim(long spaceLeft) throws RemoteException {
+    public void Reclaim(long newMaxSize) throws RemoteException {
+        maxSize.set(newMaxSize);
+
+        if(currentSize.get()>newMaxSize){
+            List<RemoteFile> copies = new ArrayList<>(localCopies.values());
+            copies.sort(new Comparator<>() {
+                @Override
+                public int compare(RemoteFile o1, RemoteFile o2) {
+                    return (int)(o2.getFileSize() - o1.getFileSize()); // Sorting from biggest to lower
+                }
+            });
+
+            for(RemoteFile file : copies){
+                currentSize.addAndGet(-file.getFileSize());
+                //TODO delete the file and send PUTFILE with replicationDegree one to successor chord peer
+            }
+
+        }
+
 
     }
 
     @Override
     public String State() throws RemoteException {
+        String out = "";
+        out += ("Peer current storage information\n");
+        out += "Max Size: " + maxSize.get() + "\n";
+        out += "Current Size: " + currentSize.get() + "\n";
 
-        return null;
+        if(localFiles.size()>0) {
+            out += "\nMy Files: " + "\n";
+            for (File f : localFiles.values()) {
+                out += "\n    Name:               " + f.getName() + "\n";
+                out += "    FileID:             " + f.getFileId() + "\n";
+                //out += "    Desired Rep Degree: " + ((Chunk) f.getChunks().values().toArray()[0]).getRepDegree() + "\n"; TODO idk if this is needed
+            }
+        }
+        if(localCopies.size()>0) {
+            out += "\nStored Files: " + "\n";
+            for (RemoteFile f : localCopies.values()) {
+                out += "\n    FileID:             " + f.getFileId() + "\n";
+                out += "    Size:               " + f.getFileSize() + "\n";
+            }
+        }
+        return out;
     }
 }
