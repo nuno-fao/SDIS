@@ -468,6 +468,7 @@ class Node {
             {
                 System.out.println("Invalid algorithm");
             }
+            this.address = new Address(address, port);
         }
 
     }
