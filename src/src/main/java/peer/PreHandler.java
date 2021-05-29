@@ -3,6 +3,8 @@ package peer;
 import javax.net.ssl.SSLSocket;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class PreHandler implements Runnable {
     private static final int bufferSize = 512;
@@ -12,14 +14,22 @@ public class PreHandler implements Runnable {
     private int currentMessageSize;
     private int actualMessageSize;
     private Chord chord;
+    private ConcurrentHashMap<String,File> localFiles;
+    private ConcurrentHashMap<String, RemoteFile> localCopies;
+    private AtomicLong maxSize;
+    private AtomicLong currentSize;
 
-    public PreHandler(SSLSocket socket, int peerId, Chord chord) {
+    public PreHandler(SSLSocket socket, int peerId, Chord chord, ConcurrentHashMap<String,File> localFiles, ConcurrentHashMap<String,RemoteFile> localCopies,AtomicLong maxSize, AtomicLong currentSize) {
         this.socket = socket;
         this.peerId = peerId;
         this.currentMessageSize = bufferSize;
         this.message = new byte[this.currentMessageSize];
         this.actualMessageSize = 0;
         this.chord = chord;
+        this.localFiles = localFiles;
+        this.localCopies = localCopies;
+        this.maxSize = maxSize;
+        this.currentSize = currentSize;
     }
 
     @Override
@@ -79,7 +89,7 @@ public class PreHandler implements Runnable {
             System.arraycopy(this.message, 0, auxBuffer, 0, this.actualMessageSize);
             this.message = auxBuffer;
         }
-        Handler handler = new Handler(this.message, this.peerId, this.chord,new Address(this.socket.getLocalAddress().getHostAddress(),0));
+        Handler handler = new Handler(this.message, this.peerId, this.chord,new Address(this.socket.getLocalAddress().getHostAddress(),0),localFiles,localCopies, maxSize, currentSize);
         handler.processMessage();
     }
 

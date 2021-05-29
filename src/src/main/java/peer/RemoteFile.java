@@ -18,6 +18,7 @@ public class RemoteFile {
     private String fileId;
     private String fileName;
     private String serverName;
+    private long fileSize;
 
     public RemoteFile(String fileId, String serverName, String fileName) {
         this.fileId = fileId;
@@ -107,6 +108,14 @@ public class RemoteFile {
                 }
             }
         });
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
     }
 
     public void saveMetadata() {
