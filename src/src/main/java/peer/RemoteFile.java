@@ -28,7 +28,7 @@ public class RemoteFile {
         } catch (IOException e) {
         }
         try {
-            Files.createDirectories(Path.of(serverName + "/.rdata"));
+            Files.createDirectories(Path.of(serverName + "/stored"));
         } catch (IOException e) {
         }
     }
@@ -46,7 +46,7 @@ public class RemoteFile {
         } catch (IOException e) {
         }
         try {
-            Files.createDirectories(Path.of(serverName + "/.rdata"));
+            Files.createDirectories(Path.of(serverName + "/stored"));
         } catch (IOException e) {
         }
     }
@@ -56,7 +56,7 @@ public class RemoteFile {
      */
     public void deleteFile() {
         try {
-            Files.deleteIfExists(Path.of(this.serverName + "/" + this.fileName));
+            Files.deleteIfExists(Path.of(this.serverName + "/stored/" + this.fileName));
         } catch (IOException e) {
             e.printStackTrace();
         }

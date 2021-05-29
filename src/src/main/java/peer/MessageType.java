@@ -30,7 +30,8 @@ public enum MessageType {
         @Override
         public int process(Header h, String[] argsList) throws ParseError {
             this.processFileID(h, argsList[1]);
-            return 2;
+            this.processReplicationDeg(h, argsList[2]);
+            return 3;
         }
     };
 
@@ -79,17 +80,17 @@ public enum MessageType {
      * @param fileId
      * @return string with a delete message
      */
-    public static byte[] createDelete(String fileId) {
-        return ("DELETE" + " " + fileId + " \r\n\r\n").getBytes();
+    public static byte[] createDelete(String fileId, int replicationDegree) {
+        return ("DELETE" + " " + fileId + " "+ replicationDegree + " \r\n\r\n").getBytes();
     }
 
     public abstract int process(Header h, String[] argsList) throws ParseError;
 
 
     void processFileID(Header h, String fileID) throws ParseError {
-        if (fileID.length() != 64) {
+       /* if (fileID.length() != 64) {
             throw new ParseError();
-        }
+        }*/
         h.setFileID(fileID.toLowerCase());
     }
 

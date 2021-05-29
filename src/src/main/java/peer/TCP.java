@@ -6,12 +6,12 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-public class TCPWriter {
+public class TCP {
     private SSLSocket socket;
     private String address;
     private int port;
 
-    public TCPWriter(String address, int port) {
+    public TCP(String address, int port) {
         this.address = address;
         this.port = port;
 
@@ -23,7 +23,11 @@ public class TCPWriter {
 
     }
 
-    public TCPWriter(String address, int port, boolean shouldNotCatchExceptions) throws IOException {
+    public SSLSocket getSocket() {
+        return socket;
+    }
+
+    public TCP(String address, int port, boolean shouldNotCatchExceptions) throws IOException {
         this.address = address;
         this.port = port;
 

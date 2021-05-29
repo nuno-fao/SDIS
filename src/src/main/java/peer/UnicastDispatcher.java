@@ -37,10 +37,6 @@ public class UnicastDispatcher implements Runnable {
                 System.out.println("Failed to accept a new connection!");
                 e.printStackTrace();
             }
-
         }
-
     }
-
-
 }

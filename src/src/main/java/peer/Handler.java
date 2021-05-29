@@ -1,14 +1,10 @@
 package peer;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import java.io.*;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
@@ -16,13 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -36,6 +26,7 @@ public class Handler {
     private Chord chord;
     private Address address;
     private ConcurrentHashMap<String,File> localFiles = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, RemoteFile> localCopies = new ConcurrentHashMap<>();
 
     Handler(byte[] message, int peerId, Chord chord,Address address) {
         this.message = message;
@@ -47,24 +38,24 @@ public class Handler {
     public void processMessage()
     {
         String stringMessage = new String(this.message);
-        if (stringMessage.startsWith("CHORD")) chord.processMessage(this.message);
-
-        String[] header = new String(this.message).stripLeading().split( " ", 2);
-        Header headers = HeaderConcrete.getHeaders(header[0]);
-        if(localFiles.contains(headers.getFileID())){
+        if (stringMessage.startsWith("CHORD")) {
+            chord.processMessage(this.message);
             return;
         }
+
+
+        Header headers = HeaderConcrete.getHeaders(new String(this.message));
         switch (headers.getMessageType()){
             case GETFILE: {
-                new GetFileHandler();
+                new GetFileHandler(peerId,headers.getFileID(),headers.getAddress(),headers.getPort(),localCopies,chord);
                 break;
             }
             case PUTFILE: {
-                new PutFileHandler();
+                new PutFileHandler(chord,headers.getFileID(),peerId,headers.getReplicationDeg(),address,new Address(headers.getAddress(),headers.getPort()),localFiles,localCopies);
                 break;
             }
             case DELETE: {
-                new DeleteHandler();
+                new DeleteHandler(peerId,headers.getFileID(),headers.getReplicationDeg(),localCopies,chord);
                 break;
             }
         }
@@ -72,29 +63,187 @@ public class Handler {
 }
 
 class PutFileHandler{
-    public PutFileHandler() {
+    private String fileId;
+    private Address local,remote;
+    private int peerId,repDegree;
+    private Chord chord;
+    private ConcurrentHashMap<String, RemoteFile> localCopies;
+    public PutFileHandler(Chord chord,String fileId,int peerId,int repDegree,Address localAddress,Address remoteAddress,ConcurrentHashMap<String,File> localFiles,ConcurrentHashMap<String,RemoteFile> localCopies) {
+        this.fileId = fileId;
+        this.peerId = peerId;
+        this.local = localAddress;
+        this.remote = remoteAddress;
+        this.chord = chord;
+        this.repDegree = repDegree;
+        this.localCopies = localCopies;
+        if(localFiles.contains(fileId)){
+            return;
+        }
+        try {
+            Receive();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        localCopies.put(fileId,null);
+    }
 
+    private void PropagateSend(byte[] data,int replicationDegree) throws IOException {
+        Node successor = chord.getSuccessor();
+        TCP messageWriter = new TCP(successor.address.address,successor.address.port);
+
+        SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+
+        byte[] contents = MessageType.createPutFile(fileId, local.address, Integer.toString(s.getLocalPort()),replicationDegree);
+        messageWriter.write(contents);
+
+        s.accept().getOutputStream().write(data);
+    }
+
+    private void Receive() throws IOException {
+        TCP reader = new TCP(remote.address, remote.port);
+        reader.write("t".getBytes());
+        InputStream s = reader.getSocket().getInputStream();
+        byte[] read = new byte[1024];
+        byte[] out = new byte[1024];
+        int r = 0, sum = 0;
+        while ((r = s.read(read, sum, 1024)) > 0) {
+            out = Arrays.copyOf(out,sum);
+            System.arraycopy(read,0,out,sum,r);
+            sum += r;
+        }
+        SaveFile(out,sum);
+        if(repDegree>1) {
+            PropagateSend(out,repDegree--);
+        }
+    }
+
+    private void SaveFile(byte[] data, int l){
+
+        Path path = Paths.get(peerId + "/" + "stored" + "/" + fileId);
+        AsynchronousFileChannel fileChannel = null;
+        try {
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, CREATE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(l);
+        buffer.put(data,0,l);
+        buffer.flip();
+        fileChannel.write(
+                buffer,0, fileChannel, new CompletionHandler<Integer, Closeable>() {
+
+                    @Override
+                    public void completed(Integer result, Closeable closeable) {
+                        try {
+                            closeable.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    @Override
+                    public void failed(Throwable exc, Closeable closeable) {
+                        try {
+                            closeable.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
     }
 }
 
 
 class GetFileHandler{
+
     private String fileId;
     private String address;
     private int port;
-    private ConcurrentHashMap<String,File> localFiles;
+    private ConcurrentHashMap<String,RemoteFile> localCopies;
+    private int peerId;
+    private Chord chord;
 
-    public GetFileHandler(String fileId, String address, int port, ConcurrentHashMap<String,File> localFiles) {
+    public GetFileHandler(int peerId, String fileId, String address, int port, ConcurrentHashMap<String,RemoteFile> localCopies, Chord chord) {
         this.fileId = fileId;
         this.address = address;
         this.port = port;
-        this.localFiles = localFiles;
+        this.localCopies = localCopies;
+        this.peerId = peerId;
+        this.chord = chord;
 
+        if(!hasCopy()){
+            resendMessage();
+        }
+        else{
+            sendFile();
+        }
+    }
 
+    public boolean hasCopy(){
+        return localCopies.contains(fileId);
+    }
+
+    public void resendMessage(){
+        Node successor = chord.getSuccessor();
+        TCP tcp = new TCP(successor.address.address,successor.address.port);
+        byte[] contents = MessageType.createGetFile(fileId,address,Integer.toString(port));
+        tcp.write(contents);
+    }
+
+    public void sendFile(){
+        TCP tcp = new TCP(address,port);
+        Path file = Path.of(peerId+ "/" + "stored" + "/" + fileId);
+        try {
+            byte[] contents = Files.readAllBytes(file);
+            tcp.write(contents);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
 
 class DeleteHandler {
-    public DeleteHandler() {
+
+    private String fileId;
+    private int replicationDegree;
+    private ConcurrentHashMap<String,RemoteFile> localCopies;
+    private int peerId;
+    private Chord chord;
+
+    public DeleteHandler(int peerId, String fileId, int replicationDegree, ConcurrentHashMap<String,RemoteFile> localCopies, Chord chord) {
+        this.fileId = fileId;
+        this.replicationDegree=replicationDegree;
+        this.localCopies = localCopies;
+        this.peerId = peerId;
+        this.chord = chord;
+
+        if(!hasCopy()){
+            resendMessage();
+        }
+        else{
+            deleteFile();
+            if(replicationDegree > 0){
+                resendMessage();
+            }
+        }
     }
+
+    public boolean hasCopy(){
+        return localCopies.contains(fileId);
+    }
+
+    public void resendMessage(){
+        Node successor = chord.getSuccessor();
+        TCP tcp = new TCP(successor.address.address,successor.address.port);
+        byte[] contents = MessageType.createDelete(fileId,replicationDegree);
+        tcp.write(contents);
+    }
+
+    public void deleteFile(){
+        localCopies.get(fileId).deleteFile();
+        replicationDegree--;
+        localCopies.remove(fileId);
+    }
+
 }

@@ -34,10 +34,11 @@ public class HeaderConcrete implements Header {
      */
     static Header getHeaders(String headerMessage) {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
-        List<Header> outList = new ArrayList<>();
         Header localHeader = new HeaderConcrete();
         try {
+            localHeader.setMessageType(MessageType.parseMessageType(argsList[0]));
             localHeader.getMessageType().process(localHeader, argsList);
+
         } catch (ParseError parseError) {
             parseError.printStackTrace();
         }

@@ -2,8 +2,13 @@ package peer;
 
 import test.RemoteInterface;
 
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.Socket;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -13,18 +18,14 @@ import java.util.concurrent.Executors;
 public class Peer implements RemoteInterface {
     private static UnicastDispatcher dispatcher;
     private static ChordHelper chordHelper;
-    // private static int port = 6666;
-    // private static int peerId = 1;
 
 
-    public static void main(String args[]) {
+    public static void main(String args[]) throws IOException {
         System.setProperty("javax.net.ssl.keyStore", "keys/server.keys");
         System.setProperty("javax.net.ssl.keyStorePassword", "123456");
         System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "123456");
 
-
-        //ves o que escrevo
         String address = args[0];
         int port = Integer.parseInt(args[1]);
         int id = 0;
@@ -63,11 +64,20 @@ public class Peer implements RemoteInterface {
         chordHelper = new ChordHelper(chord);
         new Thread(chordHelper).start();
 
-        // TCPWriter writer = new TCPWriter("localhost", 6666);
+        System.out.println(port);
+        if(port == 8000){
+            SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+            TCP t = new TCP(address,8001);
+            t.write(MessageType.createPutFile("3",address, String.valueOf(8001),1));
 
-        // writer.write(("qwertyuiopasdfghjkl").getBytes());
+            SSLSocket clientSocket;
+            clientSocket = (SSLSocket) s.accept();
 
-        // writer.close();
+            clientSocket.getOutputStream().write("dsadsaasadsdsaadsdsadsadsa".getBytes());
+        }
+        else {
+        }
+
     }
 
     @Override

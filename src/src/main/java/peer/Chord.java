@@ -1,10 +1,6 @@
 package peer;
 
-import java.io.IOError;
 import java.io.IOException;
-import java.net.ConnectException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Chord {
     private Node successorPredecessor = null;
@@ -104,7 +100,7 @@ public class Chord {
         if (predecessor != null)
         {
             Address address = new Address(this.predecessor.address.address, this.predecessor.address.port);
-            if (!TCPWriter.IsAlive(address))
+            if (!TCP.IsAlive(address))
             {
                 this.predecessor = null;
             }
@@ -123,7 +119,7 @@ public class Chord {
         Node messageSender = parseMessage(message, "REQ_PRED");
         if (messageSender != null)
         {
-            TCPWriter writer = new TCPWriter(messageSender.address.address, messageSender.address.port);
+            TCP writer = new TCP(messageSender.address.address, messageSender.address.port);
             String response;
             if (this.predecessor != null)
             {
@@ -149,7 +145,7 @@ public class Chord {
         this.successorPredecessor = null;
         try
         {
-            TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port, true);
+            TCP writer = new TCP(successor.address.address, successor.address.port, true);
             String message = "CHORD REQ_PRED " + this.n.toString();
             byte[] messageBytes = message.getBytes();
             writer.write(messageBytes);
@@ -178,7 +174,7 @@ public class Chord {
     {
         try
         {
-            TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+            TCP writer = new TCP(this.successor.address.address, this.successor.address.port, true);
             String message = "CHORD NOTIFY " + this.n.toString();
             byte[] messageBytes = message.getBytes();
             writer.write(messageBytes);
@@ -215,7 +211,7 @@ public class Chord {
     {
         try
         {
-            TCPWriter writer = new TCPWriter(remoteNode.address.address, remoteNode.address.port, true);
+            TCP writer = new TCP(remoteNode.address.address, remoteNode.address.port, true);
             int index;
             synchronized (this)
             {
@@ -244,7 +240,7 @@ public class Chord {
         {
             try
             {
-                TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port, true);
+                TCP writer = new TCP(successor.address.address, successor.address.port, true);
                 int index;
                 synchronized (this)
                 {
@@ -273,7 +269,7 @@ public class Chord {
             {
                 this.successor = this.sucessorSuccessor;
                 this.fingerTable[0] = this.successor;
-                TCPWriter writer = new TCPWriter(successor.address.address, successor.address.port);
+                TCP writer = new TCP(successor.address.address, successor.address.port);
                 int index;
                 synchronized (this)
                 {
@@ -315,7 +311,7 @@ public class Chord {
             Node requestedNode = FindSuccessor(id);
 
             String response = "CHORD NODE " + requestedNode.toString() + " " + index;
-            TCPWriter writer = new TCPWriter(messageAuthor.address.address, messageAuthor.address.port);
+            TCP writer = new TCP(messageAuthor.address.address, messageAuthor.address.port);
             writer.write(response.getBytes());
             writer.close();
         }
@@ -337,7 +333,7 @@ public class Chord {
     {
         try
         {
-            TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+            TCP writer = new TCP(this.successor.address.address, this.successor.address.port, true);
             String message = "CHORD REQ_SUCC " + this.n.toString();
             writer.write(message.getBytes());
             writer.close();
@@ -364,7 +360,7 @@ public class Chord {
         Node messageSender = this.parseMessage(message, "REQ_SUCC");
         if (messageSender != null)
         {
-            TCPWriter writer = new TCPWriter(messageSender.address.address, messageSender.address.port);
+            TCP writer = new TCP(messageSender.address.address, messageSender.address.port);
             String response = "CHORD GET_SUCC " + this.successor.toString();
             writer.write(response.getBytes());
             writer.close();
@@ -374,7 +370,7 @@ public class Chord {
     public void processMessage(byte[] message)
     {
         String stringMessage = new String(message);
-        System.out.println(stringMessage);
+        //System.out.println(stringMessage);
         if (!stringMessage.startsWith("CHORD")) return;
 
         String secondSegment = stringMessage.split(" ")[1];
