@@ -42,6 +42,7 @@ public class Handler {
             chord.processMessage(this.message);
             return;
         }
+        System.out.println(new String(this.message));
 
 
         Header headers = HeaderConcrete.getHeaders(new String(this.message));
@@ -84,7 +85,11 @@ class PutFileHandler{
         } catch (IOException e) {
             e.printStackTrace();
         }
-        localCopies.put(fileId,null);
+        try {
+            localCopies.put(fileId,new RemoteFile("s","s"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void PropagateSend(byte[] data,int replicationDegree) throws IOException {
@@ -101,13 +106,12 @@ class PutFileHandler{
 
     private void Receive() throws IOException {
         TCP reader = new TCP(remote.address, remote.port);
-        reader.write("t".getBytes());
         InputStream s = reader.getSocket().getInputStream();
         byte[] read = new byte[1024];
         byte[] out = new byte[1024];
         int r = 0, sum = 0;
-        while ((r = s.read(read, sum, 1024)) > 0) {
-            out = Arrays.copyOf(out,sum);
+        while ((r = s.read(read,0, 1024)) > 0) {
+            out = Arrays.copyOf(out,sum+r);
             System.arraycopy(read,0,out,sum,r);
             sum += r;
         }
@@ -118,6 +122,11 @@ class PutFileHandler{
     }
 
     private void SaveFile(byte[] data, int l){
+        try {
+            Files.createDirectories(Paths.get(peerId + "/" + "stored"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         Path path = Paths.get(peerId + "/" + "stored" + "/" + fileId);
         AsynchronousFileChannel fileChannel = null;

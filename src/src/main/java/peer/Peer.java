@@ -68,11 +68,12 @@ public class Peer implements RemoteInterface {
         if(port == 8000){
             SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
             TCP t = new TCP(address,8001);
-            t.write(MessageType.createPutFile("3",address, String.valueOf(8001),1));
+            t.write(MessageType.createPutFile("3",address, String.valueOf(s.getLocalPort()),1));
 
             SSLSocket clientSocket;
             clientSocket = (SSLSocket) s.accept();
 
+            System.out.println("is about to write");
             clientSocket.getOutputStream().write("dsadsaasadsdsaadsdsadsadsa".getBytes());
         }
         else {
