@@ -8,11 +8,20 @@ import java.util.List;
  */
 public class HeaderConcrete implements Header {
     private String fileID, address;
-    private Integer replicationDeg, port;
+    private Integer replicationDeg, port, sender;
 
     private MessageType messageType;
 
     private HeaderConcrete() {
+    }
+
+    @Override
+    public int getSender() {
+        return sender;
+    }
+
+    public void setSender(int sender) {
+        this.sender = sender;
     }
 
     /**

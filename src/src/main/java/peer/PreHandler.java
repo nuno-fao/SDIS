@@ -15,11 +15,11 @@ public class PreHandler implements Runnable {
     private int actualMessageSize;
     private Chord chord;
     private ConcurrentHashMap<String,File> localFiles;
-    private ConcurrentHashMap<String, RemoteFile> localCopies;
+    private ConcurrentHashMap<String, File> localCopies;
     private AtomicLong maxSize;
     private AtomicLong currentSize;
 
-    public PreHandler(SSLSocket socket, int peerId, Chord chord, ConcurrentHashMap<String,File> localFiles, ConcurrentHashMap<String,RemoteFile> localCopies,AtomicLong maxSize, AtomicLong currentSize) {
+    public PreHandler(SSLSocket socket, int peerId, Chord chord, ConcurrentHashMap<String,File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
         this.socket = socket;
         this.peerId = peerId;
         this.currentMessageSize = bufferSize;

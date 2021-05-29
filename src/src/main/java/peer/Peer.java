@@ -11,6 +11,7 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -24,16 +25,23 @@ public class Peer implements RemoteInterface {
     private UnicastDispatcher dispatcher;
     private ChordHelper chordHelper;
     private ConcurrentHashMap<String,File> localFiles;
-    private ConcurrentHashMap<String, RemoteFile> localCopies;
+    private ConcurrentHashMap<String, File> localCopies;
     private AtomicLong maxSize;
     private AtomicLong currentSize;
+    private int peerId;
+    private Chord chord;
+    private String address;
 
-    public Peer(int port, int id, Chord chord){
-
+    public Peer(String address,int port, int id, Chord chord){
         localFiles = new ConcurrentHashMap<>();
         localCopies = new ConcurrentHashMap<>();
         maxSize = new AtomicLong(-1);
         currentSize = new AtomicLong(0);
+
+        this.address = address;
+
+        this.chord = chord;
+        this.peerId = id;
 
         this.dispatcher = new UnicastDispatcher(port, id, chord, localFiles, localCopies, maxSize, currentSize);
     }
@@ -71,7 +79,7 @@ public class Peer implements RemoteInterface {
 
         Chord chord = new Chord(id, address, port);
 
-        Peer peer = new Peer(port, id, chord);
+        Peer peer = new Peer(address,port, id, chord);
 
         boolean needToCreateCircle = true;
 
@@ -93,15 +101,7 @@ public class Peer implements RemoteInterface {
 
         System.out.println(port);
         if(port == 8000){
-            SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
-            TCP t = new TCP(address,8001);
-            t.write(MessageType.createPutFile("3",address, String.valueOf(s.getLocalPort()),1));
-
-            SSLSocket clientSocket;
-            clientSocket = (SSLSocket) s.accept();
-
-            System.out.println("is about to write");
-            clientSocket.getOutputStream().write("dsadsaasadsdsaadsdsadsadsa".getBytes());
+            peer.Backup(".gitignore",1);
         }
         else {
         }
@@ -109,7 +109,9 @@ public class Peer implements RemoteInterface {
     }
 
     @Override
-    public String Backup(String filename, int replicationDegree) throws RemoteException {
+    public String Backup(String filename, int replicationDegree) throws RemoteException,IOException {
+        SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+        BigInteger fileId = null;
         Path newFilePath = Paths.get(filename);
         if(Files.exists(newFilePath)){
             long size = 0;
@@ -120,9 +122,14 @@ public class Peer implements RemoteInterface {
             }
 
             try{
-                File f = new File(filename,String.valueOf(replicationDegree));
+                var attr = Files.readAttributes(newFilePath, BasicFileAttributes.class);
+                fileId = File.getHashedString(filename+""+attr.lastModifiedTime().toMillis());
+                System.out.println(fileId);
+                File f = new File(fileId.toString(),String.valueOf(peerId),filename, attr.size(),replicationDegree);
+
+                f.saveMetadata();
                 if(localFiles.containsKey(f.getFileId())){
-                    return "File "+filename + " already bakced up";
+                    return "File "+filename + " already backed up";
                 }
                 for (File file : localFiles.values()) {
                     if (filename.compareTo(file.getName()) == 0) {
@@ -136,7 +143,26 @@ public class Peer implements RemoteInterface {
             }
 
         }
+        Node d = chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, chord.m))).intValue());
+        if(d.id == chord.n.id){
+            //todo verificar se o find
+            d = chord.FindSuccessor(d.id+1);
+        }
+        Address destination = d.address;
+        TCP t = new TCP(destination.address,destination.port);
+        t.write(MessageType.createPutFile(peerId,fileId.toString(),address, String.valueOf(s.getLocalPort()),replicationDegree));
         //TODO save file metadata && send PUTFILE message
+
+
+
+        byte[] data = Files.readAllBytes(newFilePath);
+
+        SSLSocket clientSocket;
+        clientSocket = (SSLSocket) s.accept();
+        System.out.println("is about to write");
+
+        clientSocket.getOutputStream().write(data);
+
         return "File "+filename + " bakced up successfully";
     }
 
@@ -146,7 +172,7 @@ public class Peer implements RemoteInterface {
         String fileID = null;
         for (File file : localFiles.values()) {
             if (filename.compareTo(file.getName()) == 0) {
-                fileID = file.getFileId();
+                fileID = file.getFileId().toString();
             }
         }
 
@@ -154,7 +180,7 @@ public class Peer implements RemoteInterface {
             return false;
         }
 
-        //TODO send GETFILE message to first chord peer
+        //TODO send GETFILE message to first chord peer and write file
         return true;
     }
 
@@ -163,7 +189,7 @@ public class Peer implements RemoteInterface {
         String fileID = null;
         for (File file : localFiles.values()) {
             if (filename.compareTo(file.getName()) == 0) {
-                fileID = file.getFileId();
+                fileID = file.getFileId().toString();
             }
         }
         if (fileID == null) {
@@ -182,15 +208,15 @@ public class Peer implements RemoteInterface {
         maxSize.set(newMaxSize);
 
         if(currentSize.get()>newMaxSize){
-            List<RemoteFile> copies = new ArrayList<>(localCopies.values());
+            List<File> copies = new ArrayList<>(localCopies.values());
             copies.sort(new Comparator<>() {
                 @Override
-                public int compare(RemoteFile o1, RemoteFile o2) {
+                public int compare(File o1, File o2) {
                     return (int)(o2.getFileSize() - o1.getFileSize()); // Sorting from biggest to lower
                 }
             });
 
-            for(RemoteFile file : copies){
+            for(File file : copies){
                 currentSize.addAndGet(-file.getFileSize());
                 //TODO delete the file and send PUTFILE with replicationDegree one to successor chord peer
             }
@@ -217,7 +243,7 @@ public class Peer implements RemoteInterface {
         }
         if(localCopies.size()>0) {
             out += "\nStored Files: " + "\n";
-            for (RemoteFile f : localCopies.values()) {
+            for (File f : localCopies.values()) {
                 out += "\n    FileID:             " + f.getFileId() + "\n";
                 out += "    Size:               " + f.getFileSize() + "\n";
             }

@@ -23,4 +23,9 @@ public interface Header {
 
     void setAddress(String address);
 
+
+    int getSender();
+
+    void setSender(int sender);
+
 }

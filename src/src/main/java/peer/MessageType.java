@@ -10,28 +10,31 @@ public enum MessageType {
     PUTFILE {
         @Override
         public int process(Header h, String[] argsList) throws ParseError {
-            this.processFileID(h, argsList[1]);
-            this.processReplicationDeg(h, argsList[2]);
-            this.processAddress(h, argsList[3]);
-            this.processPort(h, argsList[4]);
-            return 5;
+            this.processSender(h,argsList[1]);
+            this.processFileID(h, argsList[2]);
+            this.processReplicationDeg(h, argsList[3]);
+            this.processAddress(h, argsList[4]);
+            this.processPort(h, argsList[5]);
+            return 6;
         }
     },
     GETFILE {
         @Override
         public int process(Header h, String[] argsList) throws  ParseError {
-            this.processFileID(h, argsList[1]);
-            this.processAddress(h, argsList[2]);
-            this.processPort(h, argsList[3]);
-            return 4;
+            this.processSender(h,argsList[1]);
+            this.processFileID(h, argsList[2]);
+            this.processAddress(h, argsList[3]);
+            this.processPort(h, argsList[4]);
+            return 5;
         }
     },
     DELETE {
         @Override
         public int process(Header h, String[] argsList) throws ParseError {
-            this.processFileID(h, argsList[1]);
-            this.processReplicationDeg(h, argsList[2]);
-            return 3;
+            this.processSender(h,argsList[1]);
+            this.processFileID(h, argsList[2]);
+            this.processReplicationDeg(h, argsList[3]);
+            return 4;
         }
     };
 
@@ -62,8 +65,8 @@ public enum MessageType {
      * @param port
      * @return string with a putchunk message
      */
-    public static byte[] createPutFile(String fileId, String address, String port, int replicationDegree){
-        return ("PUTFILE" + " " + fileId + " " + replicationDegree + " " + address + " " + port + " \r\n\r\n").getBytes();
+    public static byte[] createPutFile(int senderID,String fileId, String address, String port, int replicationDegree){
+        return ("PUTFILE" + " " + senderID + " " + fileId + " " + replicationDegree + " " + address + " " + port + " \r\n\r\n").getBytes();
     }
 
     /**
@@ -72,16 +75,16 @@ public enum MessageType {
      * @param port
      * @return string with a getchunk message
      */
-    public static byte[] createGetFile(String fileId, String address, String port) {
-        return ("GETCHUNK" + " " + fileId + " " + address + " " + port + " \r\n\r\n").getBytes();
+    public static byte[] createGetFile(int senderID,String fileId, String address, String port) {
+        return ("GETCHUNK" + " " + senderID + " " + fileId + " " + address + " " + port + " \r\n\r\n").getBytes();
     }
 
     /**
      * @param fileId
      * @return string with a delete message
      */
-    public static byte[] createDelete(String fileId, int replicationDegree) {
-        return ("DELETE" + " " + fileId + " "+ replicationDegree + " \r\n\r\n").getBytes();
+    public static byte[] createDelete(int senderID,String fileId, int replicationDegree) {
+        return ("DELETE" + " " + senderID + " " + fileId + " "+ replicationDegree + " \r\n\r\n").getBytes();
     }
 
     public abstract int process(Header h, String[] argsList) throws ParseError;
@@ -107,6 +110,16 @@ public enum MessageType {
 
     void processAddress(Header h, String address) throws ParseError {
         h.setAddress(address);
+    }
+
+    void processSender(Header h, String sender) throws ParseError {
+        try{
+            int s = Integer.parseInt(sender);
+            h.setSender(s);
+        }
+        catch (Exception e){
+            throw new ParseError();
+        }
     }
 
     void processPort(Header h, String port) throws ParseError {

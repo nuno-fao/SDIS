@@ -1,5 +1,7 @@
 package test;
 
+import peer.Address;
+
 import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.util.Arrays;
