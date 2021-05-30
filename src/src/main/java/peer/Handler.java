@@ -52,7 +52,7 @@ public class Handler {
         }
         switch (headers.getMessageType()) {
             case GETFILE: {
-                new GetFileHandler(this.peerId, headers.getFileID(), headers.getAddress(), headers.getPort(), this.localCopies, this.chord);
+                new GetFileHandler(this.peerId, headers.getFileID(), headers.getAddress(), headers.getPort(), headers.getFirstPeer(), this.localCopies, this.chord);
                 break;
             }
             case PUTFILE: {
@@ -168,14 +168,19 @@ class GetFileHandler {
     private ConcurrentHashMap<String, File> localCopies;
     private int peerId;
     private Chord chord;
+    private int firstPeer;
 
-    public GetFileHandler(int peerId, String fileId, String address, int port, ConcurrentHashMap<String, File> localCopies, Chord chord) {
+    public GetFileHandler(int peerId, String fileId, String address, int port, int firstPeer, ConcurrentHashMap<String, File> localCopies, Chord chord) {
         this.fileId = fileId;
         this.address = address;
         this.port = port;
         this.localCopies = localCopies;
         this.peerId = peerId;
         this.chord = chord;
+
+        if(this.firstPeer==this.peerId){
+            return;
+        }
 
         if (!this.hasCopy()) {
             this.resendMessage();
@@ -191,7 +196,14 @@ class GetFileHandler {
     public void resendMessage() {
         Node successor = this.chord.getSuccessor();
         TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
-        byte[] contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port));
+        byte[] contents;
+        if(this.firstPeer==-1){
+            contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port),this.peerId);
+        }
+        else{
+            contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port),this.firstPeer);
+        }
+
         tcpWriter.write(contents);
     }
 

@@ -223,7 +223,7 @@ public class Peer implements RemoteInterface {
 
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort())));
+        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort()),-1));
 
         reader.start();
 
