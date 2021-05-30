@@ -3,6 +3,7 @@ package peer;
 import peer.tcp.TCPWriter;
 
 import java.io.IOException;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Chord {
     public static int m = 5;
@@ -15,6 +16,8 @@ public class Chord {
     private Node predecessor = null;
     private Node sucessorSuccessor = null;
     private int next = -1;
+    private ReentrantLock predecessorLock = new ReentrantLock();
+    private ReentrantLock waitingLock = new ReentrantLock();
 
     public Chord(int id, String address, int port) {
         this.n = new Node(address, port, id);
@@ -134,9 +137,11 @@ public class Chord {
 
             while (this.successorPredecessor == null) {
                 try {
-                    Thread.sleep(50);
+                    synchronized (this.predecessorLock) {
+                        this.predecessorLock.wait();
+                    }
                 } catch (InterruptedException e) {
-
+                    e.printStackTrace();
                 }
             }
             return this.successorPredecessor;
@@ -147,7 +152,12 @@ public class Chord {
 
     public void setSuccessorPredecessor(byte[] message) {
         Node possibleSuccessorPredecessor = this.parseMessage(message, "GET_PRED");
-        if (possibleSuccessorPredecessor != null) this.successorPredecessor = possibleSuccessorPredecessor;
+        if (possibleSuccessorPredecessor != null) {
+            this.successorPredecessor = possibleSuccessorPredecessor;
+            synchronized (this.predecessorLock) {
+                this.predecessorLock.notify();
+            }
+        }
     }
 
     public void notifySuccThatImPred() {
@@ -194,10 +204,12 @@ public class Chord {
             writer.close();
             this.waitingForResponses[index] = null;
             while (this.waitingForResponses[index] == null) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-
+                synchronized (this.waitingLock) {
+                    try {
+                        this.waitingLock.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             return this.waitingForResponses[index];
@@ -215,10 +227,12 @@ public class Chord {
                 writer.close();
                 this.waitingForResponses[index] = null;
                 while (this.waitingForResponses[index] == null) {
-                    try {
-                        Thread.sleep(50);
-                    } catch (InterruptedException e2) {
-
+                    synchronized (this.waitingLock) {
+                        try {
+                            this.waitingLock.wait();
+                        } catch (InterruptedException interruptedException) {
+                            interruptedException.printStackTrace();
+                        }
                     }
                 }
                 return this.waitingForResponses[index];
@@ -237,10 +251,12 @@ public class Chord {
                 writer.close();
                 this.waitingForResponses[index] = null;
                 while (this.waitingForResponses[index] == null) {
-                    try {
-                        Thread.sleep(50);
-                    } catch (InterruptedException e2) {
-
+                    synchronized (this.waitingLock) {
+                        try {
+                            this.waitingLock.wait();
+                        } catch (InterruptedException interruptedException) {
+                            interruptedException.printStackTrace();
+                        }
                     }
                 }
                 return this.waitingForResponses[index];
@@ -273,6 +289,9 @@ public class Chord {
             String[] messageParts = stringMessage.split(" ");
             int index = Integer.parseInt(messageParts[3]);
             this.waitingForResponses[index] = nodeRequested;
+            synchronized (this.waitingLock) {
+                this.waitingLock.notifyAll();
+            }
         }
     }
 
