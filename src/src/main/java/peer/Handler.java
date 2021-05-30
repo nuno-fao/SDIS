@@ -86,6 +86,8 @@ class PutFileHandler {
         if (localCopies.containsKey(fileId)) {
             return;
         }
+
+
         File f = null;
         try {
             f = this.Receive();
@@ -272,6 +274,7 @@ class DeleteHandler {
     }
 
     public void deleteFile() {
+        System.out.println("1 Deleting");
         this.localCopies.get(this.fileId).deleteFile();
         this.replicationDegree--;
         this.localCopies.remove(this.fileId);

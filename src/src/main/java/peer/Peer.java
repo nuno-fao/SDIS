@@ -103,14 +103,15 @@ public class Peer implements RemoteInterface {
         }
         if (port == 6666) {
             //peer.Backup("test.deb", 3);
-            peer.Backup("test.deb", 2);
+            peer.Backup("test.deb", 1);
 
             try {
                 sleep(12000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            peer.Restore("test.deb");
+            //peer.Restore("test.deb");
+            //peer.Delete("test.deb");
         }
 
     }
