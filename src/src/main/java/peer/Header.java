@@ -1,11 +1,14 @@
 package peer;
 
 public interface Header {
+
     MessageType getMessageType();
 
     void setMessageType(MessageType messageType);
 
+    void setFirstPeer(int firstPeer);
 
+    int getFirstPeer();
 
     String getFileID();
 

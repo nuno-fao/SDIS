@@ -1,14 +1,13 @@
 package peer;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Implements Header interface, used to Process the header messages
  */
 public class HeaderConcrete implements Header {
     private String fileID, address;
-    private Integer replicationDeg, port, sender;
+    private Integer replicationDeg, port, sender, firstPeer;
+
+
 
     private MessageType messageType;
 
@@ -106,5 +105,14 @@ public class HeaderConcrete implements Header {
         this.address = address;
     }
 
+    @Override
+    public void setFirstPeer(int firstPeer) {
+        this.firstPeer = firstPeer;
+    }
+
+    @Override
+    public int getFirstPeer() {
+        return this.firstPeer;
+    }
 }
 

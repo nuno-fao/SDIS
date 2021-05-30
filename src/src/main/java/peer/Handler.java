@@ -60,7 +60,7 @@ public class Handler {
                 break;
             }
             case DELETE: {
-                new DeleteHandler(this.peerId, headers.getFileID(), headers.getReplicationDeg(), this.localCopies, this.chord);
+                new DeleteHandler(this.peerId, headers.getFileID(), headers.getReplicationDeg(), headers.getFirstPeer(), this.localCopies, this.chord);
                 break;
             }
         }
@@ -228,14 +228,21 @@ class DeleteHandler {
     private ConcurrentHashMap<String, File> localCopies;
     private int peerId;
     private Chord chord;
+    private int firstPeer;
 
-    public DeleteHandler(int peerId, String fileId, int replicationDegree, ConcurrentHashMap<String, File> localCopies, Chord chord) {
+    public DeleteHandler(int peerId, String fileId, int replicationDegree, int firstPeer, ConcurrentHashMap<String, File> localCopies, Chord chord) {
         this.fileId = fileId;
         this.replicationDegree = replicationDegree;
         this.localCopies = localCopies;
         this.peerId = peerId;
         this.chord = chord;
+        this.firstPeer = firstPeer;
+
         System.out.println("Deleting");
+
+        if(this.firstPeer==this.peerId){
+            return;
+        }
 
         if (!this.hasCopy()) {
             this.resendMessage();
@@ -254,7 +261,13 @@ class DeleteHandler {
     public void resendMessage() {
         Node successor = this.chord.getSuccessor();
         TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
-        byte[] contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree);
+        byte[] contents;
+        if(this.firstPeer==-1){
+            contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree,this.peerId);
+        }
+        else{
+            contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree,this.firstPeer);
+        }
         tcpWriter.write(contents);
     }
 

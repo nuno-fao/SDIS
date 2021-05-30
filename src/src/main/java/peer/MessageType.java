@@ -1,8 +1,5 @@
 package peer;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 /**
  * Enum with a message type for every kind of message, each enum element knows how to process itself
  */
@@ -34,7 +31,8 @@ public enum MessageType {
             this.processSender(h,argsList[1]);
             this.processFileID(h, argsList[2]);
             this.processReplicationDeg(h, argsList[3]);
-            return 4;
+            this.processFirstPeer(h, argsList[4]);
+            return 5;
         }
     };
 
@@ -83,8 +81,8 @@ public enum MessageType {
      * @param fileId
      * @return string with a delete message
      */
-    public static byte[] createDelete(int senderID,String fileId, int replicationDegree) {
-        return ("DELETE" + " " + senderID + " " + fileId + " "+ replicationDegree + " \r\n\r\n").getBytes();
+    public static byte[] createDelete(int senderID,String fileId, int replicationDegree, int firstPeer) {
+        return ("DELETE" + " " + senderID + " " + fileId + " "+ replicationDegree +  " "+ firstPeer + " \r\n\r\n").getBytes();
     }
 
     public abstract int process(Header h, String[] argsList) throws ParseError;
@@ -125,6 +123,13 @@ public enum MessageType {
     void processPort(Header h, String port) throws ParseError {
         try {
             h.setPort(Integer.valueOf(port));
+        } catch (Exception e) {
+            throw new ParseError();
+        }
+    }
+    void processFirstPeer(Header h, String firstPeer) throws ParseError {
+        try {
+            h.setFirstPeer(Integer.valueOf(firstPeer));
         } catch (Exception e) {
             throw new ParseError();
         }
