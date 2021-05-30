@@ -32,6 +32,7 @@ public class UnicastDispatcher implements Runnable {
             this.serverSocket.setNeedClientAuth(true);
             this.serverSocket.setEnabledProtocols(this.serverSocket.getSupportedProtocols());
         } catch (IOException e) {
+            e.printStackTrace();
             System.out.println("Could not open datagram serverSocket");
             System.exit(3);
         }

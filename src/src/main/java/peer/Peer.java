@@ -19,7 +19,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -97,13 +96,20 @@ public class Peer implements RemoteInterface {
         peer.startChord();
 
         try {
-            sleep(15000);
+            sleep(12000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         if (port == 6666) {
             //peer.Backup("test.deb", 3);
-            peer.Backup(".gitignore", 4);
+            peer.Backup(".gitignore", 3);
+
+            try {
+                sleep(12000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            peer.Delete(".gitignore");
         }
 
     }
@@ -207,14 +213,14 @@ public class Peer implements RemoteInterface {
             return false;
         }
 
-        Node d = chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, chord.m))).intValue());
-        if(d.id == chord.n.id){
-            d = chord.FindSuccessor(d.id+1);
+        Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
+        if (d.id == this.chord.n.id) {
+            d = this.chord.FindSuccessor(d.id + 1);
         }
 
         Address destination = d.address;
-        TCPWriter t = new TCPWriter(destination.address,destination.port);
-        t.write(MessageType.createGetFile(peerId,fileId.toString(),address, String.valueOf(s.getLocalPort())));
+        TCPWriter t = new TCPWriter(destination.address, destination.port);
+        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(s.getLocalPort())));
 
         SSLSocket clientSocket;
         clientSocket = (SSLSocket) s.accept();
@@ -225,9 +231,9 @@ public class Peer implements RemoteInterface {
         byte[] read = new byte[1024];
         byte[] out = new byte[1024];
         int r = 0, sum = 0;
-        while ((r = stream.read(read,0, 1024)) > 0) {
-            out = Arrays.copyOf(out,sum+r);
-            System.arraycopy(read,0,out,sum,r);
+        while ((r = stream.read(read, 0, 1024)) > 0) {
+            out = Arrays.copyOf(out, sum + r);
+            System.arraycopy(read, 0, out, sum, r);
             sum += r;
         }
 
@@ -240,7 +246,7 @@ public class Peer implements RemoteInterface {
     public boolean Delete(String filename) throws RemoteException {
         BigInteger fileId = null;
         for (File file : this.localFiles.values()) {
-            if (filename.compareTo(file.getServerName()) == 0) {
+            if (filename.compareTo(file.getFileName()) == 0) {
                 fileId = new BigInteger(file.getFileId());
             }
         }
@@ -248,18 +254,17 @@ public class Peer implements RemoteInterface {
             return false;
         }
 
-        Node d = chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, chord.m))).intValue());
-        if(d.id == chord.n.id){
-            d = chord.FindSuccessor(d.id+1);
+        Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
+        if (d.id == this.chord.n.id) {
+            d = this.chord.FindSuccessor(d.id + 1);
         }
 
         Address destination = d.address;
-        TCPWriter t = new TCPWriter(destination.address,destination.port);
-        t.write(MessageType.createDelete(peerId,fileId.toString(),localFiles.get(fileId.toString()).getReplicationDegree()));
-
+        TCPWriter t = new TCPWriter(destination.address, destination.port);
+        t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree()));
 
         this.localFiles.remove(fileId);
-
+        System.out.println("Deleted file "+filename);
         return true;
     }
 
@@ -276,31 +281,25 @@ public class Peer implements RemoteInterface {
             for (File file : copies) {
                 this.currentSize.addAndGet(-file.getFileSize());
 
-                Node successor = chord.getSuccessor();
-                TCPWriter messageWriter = new TCPWriter(successor.address.address,successor.address.port);  //FIXME não sei se aqui é TCPwriter ou server tbh
+                Node successor = this.chord.getSuccessor();
+                TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);  //FIXME não sei se aqui é TCPwriter ou server tbh
 
                 SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
 
-                byte[] contents = MessageType.createPutFile(peerId,file.getFileId(), address, Integer.toString(s.getLocalPort()),1);
+                byte[] contents = MessageType.createPutFile(this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1);
                 messageWriter.write(contents);
 
                 s.accept().getOutputStream().write(file.readCopyContent());
 
-                localCopies.get(file.getFileId()).deleteFile();
-                localCopies.remove(file.getFileId());
+                this.localCopies.get(file.getFileId()).deleteFile();
+                this.localCopies.remove(file.getFileId());
 
 
-                if(currentSize.get()<=newMaxSize){
+                if (this.currentSize.get() <= newMaxSize) {
                     break;
                 }
             }
-
-
-
-
         }
-
-
     }
 
     @Override

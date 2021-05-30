@@ -103,7 +103,6 @@ class PutFileHandler {
         SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
         s.setNeedClientAuth(true);
 
-
         System.out.println("Propagating with RepDegree: " + replicationDegree);
 
         byte[] contents = MessageType.createPutFile(this.peerId, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree);
@@ -218,12 +217,13 @@ class DeleteHandler {
         this.localCopies = localCopies;
         this.peerId = peerId;
         this.chord = chord;
+        System.out.println("Deleting");
 
         if (!this.hasCopy()) {
             this.resendMessage();
         } else {
             this.deleteFile();
-            if (replicationDegree > 0) {
+            if (this.replicationDegree > 0) {
                 this.resendMessage();
             }
         }
