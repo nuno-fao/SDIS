@@ -98,8 +98,8 @@ public class Peer implements RemoteInterface {
             e.printStackTrace();
         }
         if (port == 6666) {
-            System.out.println("sending");
-            peer.Backup("test.deb", 3);
+            //peer.Backup("test.deb", 3);
+            peer.Backup(".gitignore", 4);
         }
 
     }
@@ -133,7 +133,6 @@ public class Peer implements RemoteInterface {
             try {
                 attr = Files.readAttributes(newFilePath, BasicFileAttributes.class);
                 fileId = File.getHashedString(filename + "" + attr.lastModifiedTime().toMillis());
-                System.out.println(fileId);
                 File f = new File(fileId.toString(), String.valueOf(this.peerId), filename, attr.size(), replicationDegree);
 
                 f.saveMetadata();
@@ -153,6 +152,8 @@ public class Peer implements RemoteInterface {
 
         }
         Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
+
+        System.out.println("ID:" + fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
         if (d.id == this.chord.n.id) {
             d = this.chord.getSuccessor();
         }
@@ -182,6 +183,7 @@ public class Peer implements RemoteInterface {
             e.printStackTrace();
         }
 
+        System.out.println("File " + filename + " bakced up successfully");
         return "File " + filename + " bakced up successfully";
     }
 

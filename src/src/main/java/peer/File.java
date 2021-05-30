@@ -93,7 +93,6 @@ public class File {
     }
 
     public void saveMetadata() {
-        System.out.println(this.serverName + "/.locals");
         try {
             Files.createDirectories(Path.of(this.serverName + "/.locals"));
         } catch (IOException e) {

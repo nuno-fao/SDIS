@@ -104,7 +104,7 @@ class PutFileHandler {
         s.setNeedClientAuth(true);
 
 
-        System.out.println("Repdegree" + replicationDegree);
+        System.out.println("Propagating with RepDegree: " + replicationDegree);
 
         byte[] contents = MessageType.createPutFile(this.peerId, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree);
         messageWriter.write(contents);
@@ -120,27 +120,30 @@ class PutFileHandler {
             InputStream in;
             int bufferSize = 0;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
+            boolean shallWrite = !this.localFiles.containsKey(this.fileId);
 
-            System.out.println("Receiving");
             File file = new File(this.fileId, String.valueOf(this.peerId), null, bufferSize, this.repDegree);
             try {
                 bufferSize = reader.getSocket().getReceiveBufferSize();
                 in = reader.getSocket().getInputStream();
                 DataInputStream clientData = new DataInputStream(in);
-                OutputStream output = new FileOutputStream(this.peerId + "/stored/" + this.fileId);
+                OutputStream output = null;
+                if (shallWrite)
+                    output = new FileOutputStream(this.peerId + "/stored/" + this.fileId);
                 byte[] buffer = new byte[bufferSize];
                 int read;
                 clientData.readLong();
                 out.write(new byte[8]);
                 while ((read = clientData.read(buffer)) != -1) {
-                    output.write(buffer, 0, read);
+                    if (shallWrite)
+                        output.write(buffer, 0, read);
                     out.write(buffer, 0, read);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
-            if (this.localFiles.containsKey(this.fileId)) {
+            if (!shallWrite) {
                 System.out.println("propagate");
                 this.PropagateSend(out.toByteArray(), this.repDegree);
                 return this.localFiles.get(this.fileId);
