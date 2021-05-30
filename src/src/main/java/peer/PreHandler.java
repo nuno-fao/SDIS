@@ -1,5 +1,6 @@
 package peer;
 
+import javax.net.ssl.SSLSocket;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -8,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PreHandler implements Runnable {
-    private Socket socket;
+    private SSLSocket socket;
     private int peerId;
     private byte[] message;
     private Chord chord;
@@ -17,7 +18,7 @@ public class PreHandler implements Runnable {
     private AtomicLong maxSize;
     private AtomicLong currentSize;
 
-    public PreHandler(Socket socket, int peerId, Chord chord, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
+    public PreHandler(SSLSocket socket, int peerId, Chord chord, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
         this.socket = socket;
         this.peerId = peerId;
         this.chord = chord;

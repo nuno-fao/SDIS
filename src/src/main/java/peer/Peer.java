@@ -1,5 +1,6 @@
 package peer;
 
+import peer.tcp.TCPReader;
 import peer.tcp.TCPServer;
 import peer.tcp.TCPWriter;
 import test.RemoteInterface;
@@ -102,14 +103,14 @@ public class Peer implements RemoteInterface {
         }
         if (port == 6666) {
             //peer.Backup("test.deb", 3);
-            peer.Backup(".gitignore", 3);
+            peer.Backup("test.deb", 2);
 
             try {
                 sleep(12000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            peer.Delete(".gitignore");
+            peer.Restore("test.deb");
         }
 
     }
@@ -150,7 +151,7 @@ public class Peer implements RemoteInterface {
                     return "File " + filename + " already backed up";
                 }
                 for (File file : this.localFiles.values()) {
-                    if (filename.compareTo(file.getServerName()) == 0) {
+                    if (filename.compareTo(file.getFileName()) == 0) {
                         //TODO delete the file that is already backed up
                         break;
                     }
@@ -200,11 +201,12 @@ public class Peer implements RemoteInterface {
     @Override
     public boolean Restore(String filename) throws IOException {
 
-        SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+
+        TCPServer reader = new TCPServer();
 
         BigInteger fileId = null;
         for (File file : this.localFiles.values()) {
-            if (filename.compareTo(file.getServerName()) == 0) {
+            if (filename.compareTo(file.getFileName()) == 0) {
                 fileId = new BigInteger(file.getFileId());
             }
         }
@@ -220,24 +222,34 @@ public class Peer implements RemoteInterface {
 
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(s.getLocalPort())));
+        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort())));
 
-        SSLSocket clientSocket;
-        clientSocket = (SSLSocket) s.accept();
-        System.out.println("is about to read");
+        reader.start();
 
 
-        InputStream stream = clientSocket.getInputStream();
-        byte[] read = new byte[1024];
-        byte[] out = new byte[1024];
-        int r = 0, sum = 0;
-        while ((r = stream.read(read, 0, 1024)) > 0) {
-            out = Arrays.copyOf(out, sum + r);
-            System.arraycopy(read, 0, out, sum, r);
-            sum += r;
+        InputStream in;
+        int bufferSize = 0;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        try {
+            Files.createDirectories(Path.of(this.peerId + "/restored"));
+            bufferSize = reader.getSocket().getReceiveBufferSize();
+            in = reader.getSocket().getInputStream();
+            DataInputStream clientData = new DataInputStream(in);
+            OutputStream output;
+                output = new FileOutputStream(this.peerId + "/restored/" + filename);
+            byte[] buffer = new byte[bufferSize];
+            int read;
+            clientData.readLong();
+            out.write(new byte[8]);
+            while ((read = clientData.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                out.write(buffer, 0, read);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
-        //localFiles.get(fileId.toString()).writeToFile(out); //TODO WRITE TO FILE
+        System.out.println("Received File");
 
         return true;
     }

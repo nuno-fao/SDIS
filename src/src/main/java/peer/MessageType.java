@@ -76,7 +76,7 @@ public enum MessageType {
      * @return string with a getchunk message
      */
     public static byte[] createGetFile(int senderID,String fileId, String address, String port) {
-        return ("GETCHUNK" + " " + senderID + " " + fileId + " " + address + " " + port + " \r\n\r\n").getBytes();
+        return ("GETFILE" + " " + senderID + " " + fileId + " " + address + " " + port + " \r\n\r\n").getBytes();
     }
 
     /**

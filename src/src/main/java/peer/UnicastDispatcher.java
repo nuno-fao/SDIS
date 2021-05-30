@@ -2,6 +2,7 @@ package peer;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,8 +43,8 @@ public class UnicastDispatcher implements Runnable {
     public void run() {
         while (true) {
             try {
-                Socket socket;
-                socket = this.serverSocket.accept();
+                SSLSocket socket;
+                socket = (SSLSocket) this.serverSocket.accept();
                 this.pool.execute(new PreHandler(socket, this.peerId, this.chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize));
             } catch (Exception e) {
                 e.printStackTrace();

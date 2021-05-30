@@ -2,12 +2,13 @@ package peer.tcp;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
 import java.io.IOException;
 import java.net.Socket;
 
 public class TCPServer {
     SSLServerSocket serverSocket;
-    Socket socket;
+    SSLSocket socket;
 
     public TCPServer() {
         try {
@@ -21,13 +22,13 @@ public class TCPServer {
         }
     }
 
-    public Socket getSocket() {
+    public SSLSocket getSocket() {
         return this.socket;
     }
 
     public void start() {
         try {
-            this.socket = this.serverSocket.accept();
+            this.socket = (SSLSocket) this.serverSocket.accept();
 
         } catch (Exception e) {
             return;

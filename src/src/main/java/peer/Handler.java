@@ -5,7 +5,10 @@ import peer.tcp.TCPWriter;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
@@ -115,7 +118,6 @@ class PutFileHandler {
         if (this.repDegree > 0) {
             TCPReader reader = new TCPReader(this.remote.address, this.remote.port);
 
-            int bytesRead;
             InputStream in;
             int bufferSize = 0;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -192,11 +194,27 @@ class GetFileHandler {
     }
 
     public void sendFile() {
-        TCPWriter tcpWriter = new TCPWriter(this.address, this.port);
-        Path file = Path.of(this.peerId + "/" + "stored" + "/" + this.fileId);
         try {
-            byte[] contents = Files.readAllBytes(file);
-            tcpWriter.write(contents);
+            SSLSocket socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(this.address,this.port);
+            final java.io.File myFile = new java.io.File(peerId+"/stored/"+fileId); //sdcard/DCIM.JPG
+            byte[] mybytearray = new byte[30000];
+            FileInputStream fis = new FileInputStream(myFile);
+            BufferedInputStream bis = new BufferedInputStream(fis);
+            DataInputStream dis = new DataInputStream(bis);
+            OutputStream os;
+            try {
+                os = socket.getOutputStream();
+                DataOutputStream dos = new DataOutputStream(os);
+                dos.writeLong(mybytearray.length);
+                int read;
+                while ((read = dis.read(mybytearray)) != -1) {
+                    dos.write(mybytearray, 0, read);
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
