@@ -261,7 +261,7 @@ public class Peer implements RemoteInterface {
 
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree()));
+        t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree(),-1));
 
         this.localFiles.remove(fileId);
         System.out.println("Deleted file "+filename);
