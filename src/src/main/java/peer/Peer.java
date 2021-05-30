@@ -86,7 +86,7 @@ public class Peer implements RemoteInterface {
         for (String arg : args) {
             if (arg.contains(":"))
             {
-                chord.Join(new Node(arg));
+                chord.Join(new Node(arg+":"+id));
                 needToCreateCircle = false;
             } 
         }
