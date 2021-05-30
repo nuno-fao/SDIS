@@ -135,7 +135,23 @@ public class File {
         });
     }
 
-    public String getName() {
+    public int getReplicationDegree() {
+        return replicationDegree;
+    }
+
+    public String getServerName() {
         return this.serverName;
     }
+
+    public byte[] readCopyContent(){
+        Path file = Path.of(serverName+ "/" + "stored" + "/" + fileId);
+        try {
+            byte[] contents = Files.readAllBytes(file);
+            return contents;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 }

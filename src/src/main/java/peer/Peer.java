@@ -4,6 +4,9 @@ import peer.tcp.TCPServer;
 import peer.tcp.TCPWriter;
 import test.RemoteInterface;
 
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -15,6 +18,7 @@ import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -140,7 +144,7 @@ public class Peer implements RemoteInterface {
                     return "File " + filename + " already backed up";
                 }
                 for (File file : this.localFiles.values()) {
-                    if (filename.compareTo(file.getName()) == 0) {
+                    if (filename.compareTo(file.getServerName()) == 0) {
                         //TODO delete the file that is already backed up
                         break;
                     }
@@ -188,59 +192,111 @@ public class Peer implements RemoteInterface {
     }
 
     @Override
-    public boolean Restore(String filename) throws RemoteException {
+    public boolean Restore(String filename) throws IOException {
 
-        String fileID = null;
+        SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+
+        BigInteger fileId = null;
         for (File file : this.localFiles.values()) {
-            if (filename.compareTo(file.getName()) == 0) {
-                fileID = file.getFileId().toString();
+            if (filename.compareTo(file.getServerName()) == 0) {
+                fileId = new BigInteger(file.getFileId());
             }
         }
 
-        if (fileID == null) {
+        if (fileId == null) {
             return false;
         }
 
-        //TODO send GETFILE message to first chord peer and write file
+        Node d = chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, chord.m))).intValue());
+        if(d.id == chord.n.id){
+            d = chord.FindSuccessor(d.id+1);
+        }
+
+        Address destination = d.address;
+        TCPWriter t = new TCPWriter(destination.address,destination.port);
+        t.write(MessageType.createGetFile(peerId,fileId.toString(),address, String.valueOf(s.getLocalPort())));
+
+        SSLSocket clientSocket;
+        clientSocket = (SSLSocket) s.accept();
+        System.out.println("is about to read");
+
+
+        InputStream stream = clientSocket.getInputStream();
+        byte[] read = new byte[1024];
+        byte[] out = new byte[1024];
+        int r = 0, sum = 0;
+        while ((r = stream.read(read,0, 1024)) > 0) {
+            out = Arrays.copyOf(out,sum+r);
+            System.arraycopy(read,0,out,sum,r);
+            sum += r;
+        }
+
+        //localFiles.get(fileId.toString()).writeToFile(out); //TODO WRITE TO FILE
+
         return true;
     }
 
     @Override
     public boolean Delete(String filename) throws RemoteException {
-        String fileID = null;
+        BigInteger fileId = null;
         for (File file : this.localFiles.values()) {
-            if (filename.compareTo(file.getName()) == 0) {
-                fileID = file.getFileId().toString();
+            if (filename.compareTo(file.getServerName()) == 0) {
+                fileId = new BigInteger(file.getFileId());
             }
         }
-        if (fileID == null) {
+        if (fileId == null) {
             return false;
         }
 
-        //TODO send DELETE message to first chord peer (with replication degree)
+        Node d = chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, chord.m))).intValue());
+        if(d.id == chord.n.id){
+            d = chord.FindSuccessor(d.id+1);
+        }
 
-        this.localFiles.remove(fileID);
+        Address destination = d.address;
+        TCPWriter t = new TCPWriter(destination.address,destination.port);
+        t.write(MessageType.createDelete(peerId,fileId.toString(),localFiles.get(fileId.toString()).getReplicationDegree()));
+
+
+        this.localFiles.remove(fileId);
 
         return true;
     }
 
     @Override
-    public void Reclaim(long newMaxSize) throws RemoteException {
+    public void Reclaim(long newMaxSize) throws IOException {
         this.maxSize.set(newMaxSize);
 
         if (this.currentSize.get() > newMaxSize) {
             List<File> copies = new ArrayList<>(this.localCopies.values());
-            copies.sort(new Comparator<>() {
-                @Override
-                public int compare(File o1, File o2) {
-                    return (int) (o2.getFileSize() - o1.getFileSize()); // Sorting from biggest to lower
-                }
+            copies.sort((o1, o2) -> {
+                return (int) (o2.getFileSize() - o1.getFileSize()); // Sorting from biggest to lower
             });
 
             for (File file : copies) {
                 this.currentSize.addAndGet(-file.getFileSize());
-                //TODO delete the file and send PUTFILE with replicationDegree one to successor chord peer
+
+                Node successor = chord.getSuccessor();
+                TCPWriter messageWriter = new TCPWriter(successor.address.address,successor.address.port);  //FIXME não sei se aqui é TCPwriter ou server tbh
+
+                SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+
+                byte[] contents = MessageType.createPutFile(peerId,file.getFileId(), address, Integer.toString(s.getLocalPort()),1);
+                messageWriter.write(contents);
+
+                s.accept().getOutputStream().write(file.readCopyContent());
+
+                localCopies.get(file.getFileId()).deleteFile();
+                localCopies.remove(file.getFileId());
+
+
+                if(currentSize.get()<=newMaxSize){
+                    break;
+                }
             }
+
+
+
 
         }
 
@@ -257,9 +313,9 @@ public class Peer implements RemoteInterface {
         if (this.localFiles.size() > 0) {
             out += "\nMy Files: " + "\n";
             for (File f : this.localFiles.values()) {
-                out += "\n    Name:               " + f.getName() + "\n";
+                out += "\n    Name:               " + f.getServerName() + "\n";
                 out += "    FileID:             " + f.getFileId() + "\n";
-                //out += "    Desired Rep Degree: " + ((Chunk) f.getChunks().values().toArray()[0]).getRepDegree() + "\n"; TODO idk if this is needed
+                out += "    Desired Rep Degree: " + f.getReplicationDegree() + "\n";
             }
         }
         if (this.localCopies.size() > 0) {
