@@ -25,7 +25,7 @@ public class File {
     private long fileSize;
     private int replicationDegree;
 
-    public File(String fileId, String serverName, String fileName, long fileSize,int replicationDegree) {
+    public File(String fileId, String serverName, String fileName, long fileSize, int replicationDegree) {
         this.fileId = fileId;
         this.serverName = serverName;
         this.fileName = fileName;
@@ -37,7 +37,7 @@ public class File {
         }
     }
 
-    public File(String fileInfo, String serverName, long fileSize,String fileId) throws Exception {
+    public File(String fileInfo, String serverName, long fileSize, String fileId) throws Exception {
         var i = fileInfo.split(";");
         try {
             Files.createDirectories(Path.of(serverName + "/stored"));
@@ -49,6 +49,21 @@ public class File {
         this.fileName = i[0];
         this.replicationDegree = Integer.parseInt(i[1]);
 
+    }
+
+    /**
+     * @param s
+     * @return the hash result of the param s
+     */
+    public static BigInteger getHashedString(String s) {
+        MessageDigest algo = null;
+        try {
+            algo = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        BigInteger number = new BigInteger(1, algo.digest(s.getBytes(StandardCharsets.UTF_8)));
+        return number;
     }
 
     /**
@@ -73,50 +88,14 @@ public class File {
         return this.fileId;
     }
 
-    public void writeToFile(byte[] data) {
-        Path path = Paths.get(this.serverName + "/stored/" + this.fileId);
-        AsynchronousFileChannel fileChannel = null;
-        try {
-            fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, CREATE);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        ByteBuffer buffer = ByteBuffer.allocate(data.length);
-
-        buffer.put(data);
-        buffer.flip();
-
-        fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
-            @Override
-            public void completed(Integer result, AsynchronousFileChannel attachment) {
-                try {
-                    attachment.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void failed(Throwable exc, AsynchronousFileChannel attachment) {
-                try {
-                    attachment.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-    }
-
     public long getFileSize() {
-        return fileSize;
+        return this.fileSize;
     }
 
     public void saveMetadata() {
-        System.out.println(serverName + "/.locals");
+        System.out.println(this.serverName + "/.locals");
         try {
-            Files.createDirectories(Path.of(serverName + "/.locals"));
+            Files.createDirectories(Path.of(this.serverName + "/.locals"));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -158,21 +137,6 @@ public class File {
     }
 
     public String getName() {
-        return serverName;
-    }
-
-    /**
-     * @param s
-     * @return the hash result of the param s
-     */
-    public static BigInteger getHashedString(String s) {
-        MessageDigest algo = null;
-        try {
-            algo = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        BigInteger number = new BigInteger(1, algo.digest(s.getBytes(StandardCharsets.UTF_8)));
-        return number;
+        return this.serverName;
     }
 }
