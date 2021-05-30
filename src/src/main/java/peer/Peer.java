@@ -103,7 +103,7 @@ public class Peer implements RemoteInterface {
         }
         if (port == 6666) {
             //peer.Backup("test.deb", 3);
-            peer.Backup("test.deb", 1);
+            peer.Backup(".gitignore", 3);
 
             try {
                 sleep(12000);
