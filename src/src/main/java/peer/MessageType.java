@@ -22,7 +22,8 @@ public enum MessageType {
             this.processFileID(h, argsList[2]);
             this.processAddress(h, argsList[3]);
             this.processPort(h, argsList[4]);
-            return 5;
+            this.processFirstPeer(h, argsList[5]);
+            return 6;
         }
     },
     DELETE {
@@ -73,8 +74,8 @@ public enum MessageType {
      * @param port
      * @return string with a getchunk message
      */
-    public static byte[] createGetFile(int senderID,String fileId, String address, String port) {
-        return ("GETFILE" + " " + senderID + " " + fileId + " " + address + " " + port + " \r\n\r\n").getBytes();
+    public static byte[] createGetFile(int senderID,String fileId, String address, String port, int firstPeer) {
+        return ("GETFILE" + " " + senderID + " " + fileId + " " + address + " " + port + " " + firstPeer + " \r\n\r\n").getBytes();
     }
 
     /**
