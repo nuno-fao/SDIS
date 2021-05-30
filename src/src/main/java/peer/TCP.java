@@ -6,6 +6,8 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import static java.lang.Thread.sleep;
+
 public class TCP {
     private SSLSocket socket;
     private String address;
@@ -48,6 +50,11 @@ public class TCP {
         try {
             DataOutputStream out = new DataOutputStream(this.socket.getOutputStream());
             out.write(message);
+            try {
+                sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             out.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -57,6 +64,11 @@ public class TCP {
     public void write(byte[] message, boolean shouldThrow) throws IOException{
         DataOutputStream out = new DataOutputStream(this.socket.getOutputStream());
         out.write(message);
+        try {
+            sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         out.close();
     }
 

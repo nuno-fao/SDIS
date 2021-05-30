@@ -47,7 +47,6 @@ public class Handler {
             chord.processMessage(this.message);
             return;
         }
-        System.out.println(new String(this.message));
 
         Header headers = HeaderConcrete.getHeaders(new String(this.message));
         if (headers.getSender() == peerId){

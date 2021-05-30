@@ -370,7 +370,7 @@ public class Chord {
     public void processMessage(byte[] message)
     {
         String stringMessage = new String(message);
-        //System.out.println(stringMessage);
+        System.out.println(stringMessage);
         if (!stringMessage.startsWith("CHORD")) return;
 
         String secondSegment = stringMessage.split(" ")[1];

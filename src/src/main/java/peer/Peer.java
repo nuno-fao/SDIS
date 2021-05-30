@@ -52,18 +52,20 @@ public class Peer implements RemoteInterface {
 
     public void start(){
         new Thread(dispatcher).start();
+    }
+
+    public void startChord(){
         new Thread(chordHelper).start();
     }
 
     public static void main(String args[]) throws IOException {
+        String address = args[0];
+        int port = Integer.parseInt(args[1]);
+        int id = 0;
         System.setProperty("javax.net.ssl.keyStore", "keys/server.keys");
         System.setProperty("javax.net.ssl.keyStorePassword", "123456");
         System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "123456");
-
-        String address = args[0];
-        int port = Integer.parseInt(args[1]);
-        int id = 0;
 
         try
         {
@@ -81,6 +83,8 @@ public class Peer implements RemoteInterface {
 
         Peer peer = new Peer(address,port, id, chord);
 
+        peer.start();
+
         boolean needToCreateCircle = true;
 
         for (String arg : args) {
@@ -97,7 +101,7 @@ public class Peer implements RemoteInterface {
 
         peer.setChordHelper( new ChordHelper(chord));
 
-        peer.start();
+        peer.startChord();
 
         System.out.println(port);
         if(port == 8000){
