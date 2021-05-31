@@ -64,7 +64,6 @@ public class TCPWriter {
 
             this.socket.close();
         } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 

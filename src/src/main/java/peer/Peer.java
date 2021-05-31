@@ -4,8 +4,6 @@ import peer.tcp.TCPServer;
 import peer.tcp.TCPWriter;
 import test.RemoteInterface;
 
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -29,8 +27,7 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.WRITE;
+import static java.nio.file.StandardOpenOption.*;
 
 public class Peer extends UnicastRemoteObject implements RemoteInterface {
     private UnicastDispatcher dispatcher;
@@ -64,7 +61,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         }
 
 
-        //todo fixme
+        //fixme
         try {
             LocateRegistry.createRegistry(1099);
         } catch (Exception e) {
@@ -137,7 +134,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
     @Override
     public String Backup(String filename, int replicationDegree) throws RemoteException, IOException {
-        TCPServer server = new TCPServer();
         BigInteger fileId = null;
         Path newFilePath = Paths.get(filename);
         BasicFileAttributes attr = null;
@@ -170,6 +166,14 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             }
 
         }
+        sendFile(filename, replicationDegree, fileId);
+
+        System.out.println("File " + filename + " backed up successfully");
+        return "File " + filename + " backed up successfully";
+    }
+
+    private void sendFile(String path, int replicationDegree, BigInteger fileId) throws FileNotFoundException {
+        TCPServer server = new TCPServer();
         Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
 
         System.out.println("ID:" + fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
@@ -181,11 +185,8 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
         t.write(MessageType.createPutFile(this.peerId, this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree, MessageType.generateMessageId()));
 
-        //TODO save file metadata && send PUTFILE message
-
-
         server.start();
-        final java.io.File myFile = new java.io.File(filename); //sdcard/DCIM.JPG
+        final java.io.File myFile = new java.io.File(path); //sdcard/DCIM.JPG
         byte[] mybytearray = new byte[30000];
         FileInputStream fis = new FileInputStream(myFile);
         BufferedInputStream bis = new BufferedInputStream(fis);
@@ -203,9 +204,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        System.out.println("File " + filename + " backed up successfully");
-        return "File " + filename + " backed up successfully";
     }
 
     @Override
@@ -295,6 +293,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     @Override
     public void Reclaim(long newMaxSize) throws IOException {
         this.maxSize.set(newMaxSize);
+        saveMetadata(this.maxSize.get());
 
         if (this.currentSize.get() > newMaxSize) {
             List<File> copies = new ArrayList<>(this.localCopies.values());
@@ -303,16 +302,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             });
 
             for (File file : copies) {
-                Node successor = this.chord.getSuccessor();
-                TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);
-
-                SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
-
-                byte[] contents = MessageType.createPutFile(this.peerId, this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1, MessageType.generateMessageId());
-
-                messageWriter.write(contents);
-
-                s.accept().getOutputStream().write(file.readCopyContent());
+                sendFile(this.peerId + "/stored/" + file.getFileId(), 1, new BigInteger(file.getFileId()));
 
                 this.localCopies.get(file.getFileId()).deleteFile(this.currentSize);
                 this.localCopies.remove(file.getFileId());
@@ -421,7 +411,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         AsynchronousFileChannel fileChannel = null;
         try {
             fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, CREATE);
+                    path, WRITE, TRUNCATE_EXISTING, CREATE);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -9,8 +9,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,10 +49,12 @@ public class Handler {
             return;
         }
 
+        System.out.println(stringMessage);
         Header headers = HeaderConcrete.getHeaders(new String(this.message));
 
         if (headers.getMessageType() != MessageType.PUTERROR) {
             if (this.receivedMessages.containsKey(headers.getMessageId())) {
+                System.out.println(new String(this.message));
                 if (headers.getMessageType() == MessageType.PUTFILE) {
                     Node successor = this.chord.FindSuccessor(headers.getInitiator());
                     TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
@@ -96,6 +97,12 @@ class PutFileHandler {
     private String messageId;
     private AtomicLong maxSize, currentSize;
 
+    private byte[] longToBytes(long x) {
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.putLong(x);
+        return buffer.array();
+    }
+
     public PutFileHandler(Chord chord, int initiator, String fileId, int peerId, int repDegree, Address localAddress, Address remoteAddress, String messageId, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
         this.fileId = fileId;
         this.peerId = peerId;
@@ -109,10 +116,6 @@ class PutFileHandler {
         this.initiator = initiator;
         this.currentSize = currentSize;
         this.maxSize = maxSize;
-
-        if (localCopies.containsKey(fileId)) {
-            return;
-        }
 
         File f = null;
         try {
@@ -152,7 +155,7 @@ class PutFileHandler {
             int bufferSize = 0;
             int fileSize = 0;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            boolean shallWrite = !this.localFiles.containsKey(this.fileId);
+            boolean shallWrite = !this.localFiles.containsKey(this.fileId) && !this.localCopies.containsKey(this.fileId);
 
             File file = new File(this.fileId, String.valueOf(this.peerId), null, bufferSize, this.repDegree);
             try {
@@ -160,12 +163,13 @@ class PutFileHandler {
                 in = reader.getSocket().getInputStream();
                 DataInputStream clientData = new DataInputStream(in);
                 OutputStream output = null;
+                long size = clientData.readLong();
+                shallWrite &= (this.maxSize.get() == -1 || this.maxSize.get() > this.currentSize.get() + size);
                 if (shallWrite)
                     output = new FileOutputStream(this.peerId + "/stored/" + this.fileId);
                 byte[] buffer = new byte[bufferSize];
                 int read;
-                clientData.readLong();
-                out.write(new byte[8]);
+                out.write(longToBytes(size));
                 while ((read = clientData.read(buffer)) != -1) {
                     fileSize += read;
                     if (shallWrite)
@@ -177,16 +181,16 @@ class PutFileHandler {
             }
 
             file.setFileSize(fileSize);
-            this.currentSize.getAndAdd(fileSize);
-
             if (!shallWrite) {
+                System.out.println("batata doce");
+                System.out.println(out.size());
                 this.PropagateSend(out.toByteArray(), this.repDegree);
                 return this.localFiles.get(this.fileId);
             } else if (this.repDegree > 1) {
                 this.PropagateSend(out.toByteArray(), this.repDegree - 1);
-            }
-            if (this.maxSize.get() > -1 && this.maxSize.get() < this.currentSize.get()) {
-                Files.deleteIfExists(Path.of(this.peerId + "/stored/" + this.fileId));
+                this.currentSize.getAndAdd(fileSize);
+            } else {
+                this.currentSize.getAndAdd(fileSize);
             }
             return file;
         }

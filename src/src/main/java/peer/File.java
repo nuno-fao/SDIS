@@ -13,8 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.WRITE;
+import static java.nio.file.StandardOpenOption.*;
 
 /**
  * Used to store metadata from files that the peer has backed up
@@ -115,7 +114,7 @@ public class File {
         AsynchronousFileChannel fileChannel = null;
         try {
             fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, CREATE);
+                    path, WRITE, TRUNCATE_EXISTING, CREATE);
         } catch (IOException e) {
             e.printStackTrace();
         }
