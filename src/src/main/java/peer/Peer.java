@@ -11,6 +11,9 @@ import javax.net.ssl.SSLSocket;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,6 +21,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Thread.sleep;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class Peer implements RemoteInterface {
     private UnicastDispatcher dispatcher;
@@ -52,6 +58,11 @@ public class Peer implements RemoteInterface {
 
         this.chord = chord;
         this.peerId = id;
+        try {
+            Files.createDirectories(Path.of(peerId + "/"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         this.dispatcher = new UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize);
     }
@@ -95,25 +106,6 @@ public class Peer implements RemoteInterface {
         peer.setChordHelper(new ChordHelper(chord));
 
         peer.startChord();
-
-        try {
-            sleep(12000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if (port == 6666) {
-            //peer.Backup("test.deb", 3);
-            peer.Backup(".gitignore", 3);
-
-            try {
-                sleep(12000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            //peer.Restore("test.deb");
-            //peer.Delete("test.deb");
-        }
-
     }
 
     public void setChordHelper(ChordHelper chordHelper) {
@@ -153,7 +145,7 @@ public class Peer implements RemoteInterface {
                 }
                 for (File file : this.localFiles.values()) {
                     if (filename.compareTo(file.getFileName()) == 0) {
-                        //TODO delete the file that is already backed up
+                        Delete(new BigInteger(file.getFileId()));
                         break;
                     }
                 }
@@ -266,7 +258,11 @@ public class Peer implements RemoteInterface {
         if (fileId == null) {
             return false;
         }
-
+        var out =  Delete(fileId);
+        System.out.println("Deleted file "+filename);
+        return out;
+    }
+    public boolean Delete(BigInteger fileId){
         Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
         if (d.id == this.chord.n.id) {
             d = this.chord.FindSuccessor(d.id + 1);
@@ -277,7 +273,6 @@ public class Peer implements RemoteInterface {
         t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree(),MessageType.generateMessageId()));
 
         this.localFiles.remove(fileId);
-        System.out.println("Deleted file "+filename);
         return true;
     }
 
@@ -313,6 +308,44 @@ public class Peer implements RemoteInterface {
                 }
             }
         }
+    }
+
+    public void saveMetadata(int space){
+        Path path = Paths.get(this.peerId + "/.data");
+        AsynchronousFileChannel fileChannel = null;
+        try {
+            fileChannel = AsynchronousFileChannel.open(
+                    path, WRITE, CREATE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        byte[] data = (space+"").getBytes();
+
+        ByteBuffer buffer = ByteBuffer.allocate(data.length);
+
+        buffer.put(data);
+        buffer.flip();
+
+        fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+            @Override
+            public void completed(Integer result, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     @Override

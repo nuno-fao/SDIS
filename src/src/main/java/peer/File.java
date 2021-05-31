@@ -72,6 +72,7 @@ public class File {
     public void deleteFile() {
         try {
             Files.deleteIfExists(Path.of(this.serverName + "/stored/" + this.fileId));
+            Files.deleteIfExists(Path.of(this.serverName + "/.locals/" + this.fileId));
         } catch (IOException e) {
             e.printStackTrace();
         }
