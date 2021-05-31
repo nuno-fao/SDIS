@@ -49,8 +49,20 @@ public class Handler {
         System.out.println(stringMessage);
 
         Header headers = HeaderConcrete.getHeaders(new String(this.message));
-        if (headers.getSender() == this.peerId) {
+
+        if (this.receivedMessages.containsKey(headers.getMessageId())){
+
+            if(headers.getMessageType() == MessageType.PUTFILE ){
+                Node successor = this.chord.FindSuccessor(headers.getInitiator());
+                TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
+                byte[] contents;
+                contents = MessageType.createPutError(headers.getInitiator(),headers.getFileID(),headers.getReplicationDeg());
+                tcpWriter.write(contents);
+            }
             return;
+        }
+        else{
+            this.receivedMessages.put(headers.getMessageId(),true);
         }
 
         switch (headers.getMessageType()) {
@@ -59,12 +71,15 @@ public class Handler {
                 break;
             }
             case PUTFILE: {
-                new PutFileHandler(this.chord, headers.getFileID(), this.peerId, headers.getReplicationDeg(), this.address, new Address(headers.getAddress(), headers.getPort()), this.localFiles, this.localCopies);
+                new PutFileHandler(this.chord, headers.getInitiator() ,headers.getFileID(), this.peerId, headers.getReplicationDeg(), this.address, new Address(headers.getAddress(), headers.getPort()), headers.getMessageId(), this.localFiles, this.localCopies);
                 break;
             }
             case DELETE: {
                 new DeleteHandler(this.peerId, headers.getFileID(), headers.getReplicationDeg(), headers.getMessageId(), this.localCopies, this.chord);
                 break;
+            }
+            case PUTERROR: {
+                new PutErrorHandler(this.peerId, headers.getInitiator(), headers.getFileID(), headers.getReplicationDeg(), this.chord);
             }
         }
     }
@@ -73,11 +88,12 @@ public class Handler {
 class PutFileHandler {
     private String fileId;
     private Address local, remote;
-    private int peerId, repDegree;
+    private int peerId, repDegree, initiator;
     private Chord chord;
     private ConcurrentHashMap<String, File> localCopies, localFiles;
+    private String messageId;
 
-    public PutFileHandler(Chord chord, String fileId, int peerId, int repDegree, Address localAddress, Address remoteAddress, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies) {
+    public PutFileHandler(Chord chord, int initiator ,String fileId, int peerId, int repDegree, Address localAddress, Address remoteAddress, String messageId, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies) {
         this.fileId = fileId;
         this.peerId = peerId;
         this.local = localAddress;
@@ -86,6 +102,9 @@ class PutFileHandler {
         this.repDegree = repDegree;
         this.localCopies = localCopies;
         this.localFiles = localFiles;
+        this.messageId = messageId;
+        this.initiator = initiator;
+
         if (localCopies.containsKey(fileId)) {
             return;
         }
@@ -112,8 +131,8 @@ class PutFileHandler {
 
         System.out.println("Propagating with RepDegree: " + replicationDegree);
 
-        //byte[] contents = MessageType.createPutFile(this.peerId, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree,); FIXME
-        //messageWriter.write(contents);
+        byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree,this.messageId);
+        messageWriter.write(contents);
 
         s.accept().getOutputStream().write(data);
     }
@@ -278,4 +297,33 @@ class DeleteHandler {
         this.localCopies.remove(this.fileId);
     }
 
+}
+
+class PutErrorHandler{
+    private int peerId, replicationDeg, initiator;
+    private String fileId;
+    private Chord chord;
+
+    public PutErrorHandler(int peerId, int initiator, String fileId, Integer replicationDeg, Chord chord) {
+        this.peerId=peerId;
+        this.replicationDeg=replicationDeg;
+        this.initiator=initiator;
+        this.fileId=fileId;
+        this.chord = chord;
+
+        if(this.peerId==this.initiator){
+            System.out.println("Error maintaining replication degree of file with ID "+this.fileId);
+        }
+        else{
+            resendMessage();
+        }
+    }
+
+    public void resendMessage(){
+        Node successor = this.chord.FindSuccessor(initiator);
+        TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
+        byte[] contents;
+        contents = MessageType.createPutError(initiator,fileId,replicationDeg);
+        tcpWriter.write(contents);
+    }
 }

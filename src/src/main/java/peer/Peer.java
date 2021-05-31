@@ -163,7 +163,7 @@ public class Peer implements RemoteInterface {
         }
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createPutFile(this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree,MessageType.generateMessageId()));
+        t.write(MessageType.createPutFile(this.peerId, this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree,MessageType.generateMessageId()));
         //TODO save file metadata && send PUTFILE message
 
 
@@ -290,11 +290,11 @@ public class Peer implements RemoteInterface {
                 this.currentSize.addAndGet(-file.getFileSize());
 
                 Node successor = this.chord.getSuccessor();
-                TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);  //FIXME não sei se aqui é TCPwriter ou server tbh
+                TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);
 
                 SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
 
-                byte[] contents = MessageType.createPutFile(this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1,MessageType.generateMessageId());
+                byte[] contents = MessageType.createPutFile(this.peerId, this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1,MessageType.generateMessageId());
                 messageWriter.write(contents);
 
                 s.accept().getOutputStream().write(file.readCopyContent());

@@ -4,8 +4,8 @@ package peer;
  * Implements Header interface, used to Process the header messages
  */
 public class HeaderConcrete implements Header {
-    private String fileID, address;
-    private Integer replicationDeg, port, sender, firstPeer;
+    private String fileID, address, messageId;
+    private Integer replicationDeg, port, sender, initiator;
 
 
 
@@ -21,6 +21,16 @@ public class HeaderConcrete implements Header {
 
     public void setSender(int sender) {
         this.sender = sender;
+    }
+
+    @Override
+    public Integer getInitiator() {
+        return this.initiator;
+    }
+
+    @Override
+    public void setInitiator(Integer initiator) {
+        this.initiator=initiator;
     }
 
     /**
@@ -64,13 +74,13 @@ public class HeaderConcrete implements Header {
     }
 
     @Override
-    public void setMessageId(String firstPeer) {
-
+    public void setMessageId(String messageId) {
+        this.messageId=messageId;
     }
 
     @Override
     public String getMessageId() {
-        return null;
+        return this.messageId;
     }
 
 
