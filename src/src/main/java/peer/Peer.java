@@ -42,7 +42,6 @@ public class Peer implements RemoteInterface {
     private Chord chord;
     private String address;
     private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    private int space = -1;
 
     public Peer(String address, int port, int id, Chord chord) {
         System.out.println(id);
@@ -316,10 +315,12 @@ public class Peer implements RemoteInterface {
             if (directoryListing != null) {
                 for (java.io.File child : directoryListing) {
                     if (!child.isDirectory()) {
+                        currentSize.addAndGet(child.length());
                         localCopies.put(child.getName(), new File(child.getName(), peerId + "", child.getTotalSpace()));
                     }
                 }
             }
+            System.out.println("Current Size: " + (long) (currentSize.get() / 1024) + " KiB");
         } catch (Exception ignored) {
 
         }
@@ -333,11 +334,7 @@ public class Peer implements RemoteInterface {
                         Path path = Paths.get(peerId + "/.locals/" + child.getName());
                         AsynchronousFileChannel fileChannel
                                 = null;
-                        try {
-                            fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
 
                         ByteBuffer buffer = ByteBuffer.allocate(1024);
 
@@ -368,11 +365,7 @@ public class Peer implements RemoteInterface {
             Path path = Paths.get(peerId + "/.data");
             AsynchronousFileChannel fileChannel
                     = null;
-            try {
-                fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
 
             ByteBuffer buffer = ByteBuffer.allocate(1024);
 
@@ -383,10 +376,10 @@ public class Peer implements RemoteInterface {
                         public void completed(Integer result, ByteBuffer attachment) {
                             byte[] res = new byte[result];
                             System.arraycopy(buffer.array(), 0, res, 0, result);
-                            space = Integer.parseInt(new String(res));
-                            saveMetadata(space);
-                            if (space > -1) {
-                                System.out.println("Max space:" + space);
+                            maxSize.set(Integer.parseInt(new String(res)));
+                            saveMetadata(maxSize.get());
+                            if (maxSize.get() > -1) {
+                                System.out.println("Max space:" + maxSize.get());
                             } else {
                                 System.out.println("Max space not defined");
                             }
@@ -397,16 +390,16 @@ public class Peer implements RemoteInterface {
                         }
                     });
         } catch (Exception e) {
-            saveMetadata(space);
-            if (space > -1) {
-                System.out.println("Max space:" + space);
+            saveMetadata(maxSize.get());
+            if (maxSize.get() > -1) {
+                System.out.println("Max space:" + maxSize.get());
             } else {
                 System.out.println("Max space not defined");
             }
         }
     }
 
-    public void saveMetadata(int space) {
+    public void saveMetadata(long space) {
         Path path = Paths.get(this.peerId + "/.data");
         AsynchronousFileChannel fileChannel = null;
         try {
