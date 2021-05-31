@@ -171,7 +171,7 @@ public class Peer implements RemoteInterface {
         }
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createPutFile(this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree));
+        t.write(MessageType.createPutFile(this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree,MessageType.generateMessageId()));
         //TODO save file metadata && send PUTFILE message
 
 
@@ -223,7 +223,7 @@ public class Peer implements RemoteInterface {
 
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort()),-1));
+        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort()),MessageType.generateMessageId()));
 
         reader.start();
 
@@ -274,7 +274,7 @@ public class Peer implements RemoteInterface {
 
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree(),-1));
+        t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree(),MessageType.generateMessageId()));
 
         this.localFiles.remove(fileId);
         System.out.println("Deleted file "+filename);
@@ -299,7 +299,7 @@ public class Peer implements RemoteInterface {
 
                 SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
 
-                byte[] contents = MessageType.createPutFile(this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1);
+                byte[] contents = MessageType.createPutFile(this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1,MessageType.generateMessageId());
                 messageWriter.write(contents);
 
                 s.accept().getOutputStream().write(file.readCopyContent());

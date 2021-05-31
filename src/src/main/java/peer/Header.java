@@ -6,9 +6,9 @@ public interface Header {
 
     void setMessageType(MessageType messageType);
 
-    void setFirstPeer(int firstPeer);
+    void setMessageId(String firstPeer);
 
-    int getFirstPeer();
+    String getMessageId();
 
     String getFileID();
 

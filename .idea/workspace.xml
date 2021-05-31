@@ -5,9 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="057afe18-e091-4ff1-b017-e69b9bdee0d6" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/src/main/java/peer/Header.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/src/main/java/peer/Header.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/src/main/java/peer/HeaderConcrete.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/src/main/java/peer/HeaderConcrete.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/src/main/java/peer/MessageType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/src/main/java/peer/MessageType.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -89,6 +90,7 @@
       <updated>1622385598638</updated>
       <workItem from="1622385605111" duration="5397000" />
       <workItem from="1622408747329" duration="770000" />
+      <workItem from="1622474482630" duration="1056000" />
     </task>
     <servers />
   </component>

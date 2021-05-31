@@ -1,5 +1,10 @@
 package peer;
 
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 /**
  * Enum with a message type for every kind of message, each enum element knows how to process itself
  */
@@ -12,7 +17,8 @@ public enum MessageType {
             this.processReplicationDeg(h, argsList[3]);
             this.processAddress(h, argsList[4]);
             this.processPort(h, argsList[5]);
-            return 6;
+            this.processMessageId(h, argsList[6]);
+            return 7;
         }
     },
     GETFILE {
@@ -22,7 +28,7 @@ public enum MessageType {
             this.processFileID(h, argsList[2]);
             this.processAddress(h, argsList[3]);
             this.processPort(h, argsList[4]);
-            this.processFirstPeer(h, argsList[5]);
+            this.processMessageId(h, argsList[5]);
             return 6;
         }
     },
@@ -32,7 +38,7 @@ public enum MessageType {
             this.processSender(h,argsList[1]);
             this.processFileID(h, argsList[2]);
             this.processReplicationDeg(h, argsList[3]);
-            this.processFirstPeer(h, argsList[4]);
+            this.processMessageId(h, argsList[4]);
             return 5;
         }
     };
@@ -64,8 +70,8 @@ public enum MessageType {
      * @param port
      * @return string with a putchunk message
      */
-    public static byte[] createPutFile(int senderID,String fileId, String address, String port, int replicationDegree){
-        return ("PUTFILE" + " " + senderID + " " + fileId + " " + replicationDegree + " " + address + " " + port + " \r\n\r\n").getBytes();
+    public static byte[] createPutFile(int senderID,String fileId, String address, String port, int replicationDegree, String messageId){
+        return ("PUTFILE" + " " + senderID + " " + fileId + " " + replicationDegree + " " + address + " " + port + " " + messageId + " \r\n\r\n").getBytes();
     }
 
     /**
@@ -74,16 +80,16 @@ public enum MessageType {
      * @param port
      * @return string with a getchunk message
      */
-    public static byte[] createGetFile(int senderID,String fileId, String address, String port, int firstPeer) {
-        return ("GETFILE" + " " + senderID + " " + fileId + " " + address + " " + port + " " + firstPeer + " \r\n\r\n").getBytes();
+    public static byte[] createGetFile(int senderID,String fileId, String address, String port, String messageId) {
+        return ("GETFILE" + " " + senderID + " " + fileId + " " + address + " " + port + " " + messageId + " \r\n\r\n").getBytes();
     }
 
     /**
      * @param fileId
      * @return string with a delete message
      */
-    public static byte[] createDelete(int senderID,String fileId, int replicationDegree, int firstPeer) {
-        return ("DELETE" + " " + senderID + " " + fileId + " "+ replicationDegree +  " "+ firstPeer + " \r\n\r\n").getBytes();
+    public static byte[] createDelete(int senderID,String fileId, int replicationDegree, String messageId) {
+        return ("DELETE" + " " + senderID + " " + fileId + " "+ replicationDegree +  " "+ messageId + " \r\n\r\n").getBytes();
     }
 
     public abstract int process(Header h, String[] argsList) throws ParseError;
@@ -128,12 +134,23 @@ public enum MessageType {
             throw new ParseError();
         }
     }
-    void processFirstPeer(Header h, String firstPeer) throws ParseError {
+    void processMessageId(Header h, String messageId) throws ParseError {
         try {
-            h.setFirstPeer(Integer.valueOf(firstPeer));
+            h.setMessageId(messageId);
         } catch (Exception e) {
             throw new ParseError();
         }
+    }
+
+    public static String generateMessageId(){
+        MessageDigest algo = null;
+        try {
+            algo = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+
+        return new String(algo.digest(String.valueOf(System.nanoTime()).getBytes(StandardCharsets.UTF_8)));
     }
 
 }

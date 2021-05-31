@@ -26,6 +26,7 @@ public class Handler {
     private ConcurrentHashMap<String, File> localCopies;
     private AtomicLong maxSize;
     private AtomicLong currentSize;
+    private ConcurrentHashMap<String, Boolean> receivedMessages;
 
     Handler(byte[] message, int peerId, Chord chord, Address address, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
         this.message = message;
@@ -36,6 +37,7 @@ public class Handler {
         this.localCopies = localCopies;
         this.maxSize = maxSize;
         this.currentSize = currentSize;
+        this.receivedMessages = new ConcurrentHashMap<>();
     }
 
     public void processMessage() {
@@ -50,9 +52,10 @@ public class Handler {
         if (headers.getSender() == this.peerId) {
             return;
         }
+
         switch (headers.getMessageType()) {
             case GETFILE: {
-                new GetFileHandler(this.peerId, headers.getFileID(), headers.getAddress(), headers.getPort(), headers.getFirstPeer(), this.localCopies, this.chord);
+                new GetFileHandler(this.peerId, headers.getFileID(), headers.getAddress(), headers.getPort(), headers.getMessageId(), this.localCopies, this.chord);
                 break;
             }
             case PUTFILE: {
@@ -60,7 +63,7 @@ public class Handler {
                 break;
             }
             case DELETE: {
-                new DeleteHandler(this.peerId, headers.getFileID(), headers.getReplicationDeg(), headers.getFirstPeer(), this.localCopies, this.chord);
+                new DeleteHandler(this.peerId, headers.getFileID(), headers.getReplicationDeg(), headers.getMessageId(), this.localCopies, this.chord);
                 break;
             }
         }
@@ -110,8 +113,8 @@ class PutFileHandler {
 
         System.out.println("Propagating with RepDegree: " + replicationDegree);
 
-        byte[] contents = MessageType.createPutFile(this.peerId, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree);
-        messageWriter.write(contents);
+        //byte[] contents = MessageType.createPutFile(this.peerId, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree,); FIXME
+        //messageWriter.write(contents);
 
         s.accept().getOutputStream().write(data);
     }
@@ -168,9 +171,9 @@ class GetFileHandler {
     private ConcurrentHashMap<String, File> localCopies;
     private int peerId;
     private Chord chord;
-    private int firstPeer;
+    private String messageId;
 
-    public GetFileHandler(int peerId, String fileId, String address, int port, int firstPeer, ConcurrentHashMap<String, File> localCopies, Chord chord) {
+    public GetFileHandler(int peerId, String fileId, String address, int port, String messageId, ConcurrentHashMap<String, File> localCopies, Chord chord) {
         this.fileId = fileId;
         this.address = address;
         this.port = port;
@@ -178,9 +181,7 @@ class GetFileHandler {
         this.peerId = peerId;
         this.chord = chord;
 
-        if(this.firstPeer==this.peerId){
-            return;
-        }
+
 
         if (!this.hasCopy()) {
             this.resendMessage();
@@ -197,12 +198,7 @@ class GetFileHandler {
         Node successor = this.chord.getSuccessor();
         TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
         byte[] contents;
-        if(this.firstPeer==-1){
-            contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port),this.peerId);
-        }
-        else{
-            contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port),this.firstPeer);
-        }
+        contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port),this.messageId);
 
         tcpWriter.write(contents);
     }
@@ -242,21 +238,17 @@ class DeleteHandler {
     private ConcurrentHashMap<String, File> localCopies;
     private int peerId;
     private Chord chord;
-    private int firstPeer;
+    private String messageId;
 
-    public DeleteHandler(int peerId, String fileId, int replicationDegree, int firstPeer, ConcurrentHashMap<String, File> localCopies, Chord chord) {
+    public DeleteHandler(int peerId, String fileId, int replicationDegree, String messageId, ConcurrentHashMap<String, File> localCopies, Chord chord) {
         this.fileId = fileId;
         this.replicationDegree = replicationDegree;
         this.localCopies = localCopies;
         this.peerId = peerId;
         this.chord = chord;
-        this.firstPeer = firstPeer;
+        this.messageId = messageId;
 
         System.out.println("Deleting");
-
-        if(this.firstPeer==this.peerId){
-            return;
-        }
 
         if (!this.hasCopy()) {
             this.resendMessage();
@@ -276,12 +268,7 @@ class DeleteHandler {
         Node successor = this.chord.getSuccessor();
         TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
         byte[] contents;
-        if(this.firstPeer==-1){
-            contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree,this.peerId);
-        }
-        else{
-            contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree,this.firstPeer);
-        }
+        contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree,this.messageId);
         tcpWriter.write(contents);
     }
 

@@ -63,6 +63,16 @@ public class HeaderConcrete implements Header {
         this.messageType = messageType;
     }
 
+    @Override
+    public void setMessageId(String firstPeer) {
+
+    }
+
+    @Override
+    public String getMessageId() {
+        return null;
+    }
+
 
     @Override
     public String getFileID() {
@@ -105,14 +115,6 @@ public class HeaderConcrete implements Header {
         this.address = address;
     }
 
-    @Override
-    public void setFirstPeer(int firstPeer) {
-        this.firstPeer = firstPeer;
-    }
 
-    @Override
-    public int getFirstPeer() {
-        return this.firstPeer;
-    }
 }
 
