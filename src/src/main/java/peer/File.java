@@ -37,6 +37,12 @@ public class File {
         }
     }
 
+    public File(String fileId, String serverName, long fileSize) {
+        this.fileId = fileId;
+        this.serverName = serverName;
+        this.fileSize = fileSize;
+    }
+
     public File(String fileInfo, String serverName, long fileSize, String fileId) throws Exception {
         var i = fileInfo.split(";");
         try {
@@ -48,7 +54,6 @@ public class File {
 
         this.fileName = i[0];
         this.replicationDegree = Integer.parseInt(i[1]);
-
     }
 
     /**
@@ -144,8 +149,8 @@ public class File {
         return this.serverName;
     }
 
-    public byte[] readCopyContent(){
-        Path file = Path.of(serverName+ "/" + "stored" + "/" + fileId);
+    public byte[] readCopyContent() {
+        Path file = Path.of(serverName + "/" + "stored" + "/" + fileId);
         try {
             byte[] contents = Files.readAllBytes(file);
             return contents;

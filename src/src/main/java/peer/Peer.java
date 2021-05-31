@@ -1,13 +1,11 @@
 package peer;
 
-import peer.tcp.TCPReader;
 import peer.tcp.TCPServer;
 import peer.tcp.TCPWriter;
 import test.RemoteInterface;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
-import javax.net.ssl.SSLSocket;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -17,13 +15,12 @@ import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Time;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -31,7 +28,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static java.lang.Thread.sleep;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
@@ -46,6 +42,7 @@ public class Peer implements RemoteInterface {
     private Chord chord;
     private String address;
     private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private int space = -1;
 
     public Peer(String address, int port, int id, Chord chord) {
         System.out.println(id);
@@ -64,6 +61,7 @@ public class Peer implements RemoteInterface {
             e.printStackTrace();
         }
 
+        readMetadata();
         this.dispatcher = new UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize);
     }
 
@@ -163,7 +161,7 @@ public class Peer implements RemoteInterface {
         }
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createPutFile(this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree,MessageType.generateMessageId()));
+        t.write(MessageType.createPutFile(this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree, MessageType.generateMessageId()));
         //TODO save file metadata && send PUTFILE message
 
 
@@ -215,7 +213,7 @@ public class Peer implements RemoteInterface {
 
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort()),MessageType.generateMessageId()));
+        t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort()), MessageType.generateMessageId()));
 
         reader.start();
 
@@ -230,13 +228,13 @@ public class Peer implements RemoteInterface {
             in = reader.getSocket().getInputStream();
             DataInputStream clientData = new DataInputStream(in);
             OutputStream output;
-                output = new FileOutputStream(this.peerId + "/restored/" + filename);
+            output = new FileOutputStream(this.peerId + "/restored/" + filename);
             byte[] buffer = new byte[bufferSize];
             int read;
             clientData.readLong();
             out.write(new byte[8]);
             while ((read = clientData.read(buffer)) != -1) {
-                    output.write(buffer, 0, read);
+                output.write(buffer, 0, read);
                 out.write(buffer, 0, read);
             }
         } catch (IOException e) {
@@ -258,11 +256,12 @@ public class Peer implements RemoteInterface {
         if (fileId == null) {
             return false;
         }
-        var out =  Delete(fileId);
-        System.out.println("Deleted file "+filename);
+        var out = Delete(fileId);
+        System.out.println("Deleted file " + filename);
         return out;
     }
-    public boolean Delete(BigInteger fileId){
+
+    public boolean Delete(BigInteger fileId) {
         Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
         if (d.id == this.chord.n.id) {
             d = this.chord.FindSuccessor(d.id + 1);
@@ -270,7 +269,7 @@ public class Peer implements RemoteInterface {
 
         Address destination = d.address;
         TCPWriter t = new TCPWriter(destination.address, destination.port);
-        t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree(),MessageType.generateMessageId()));
+        t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree(), MessageType.generateMessageId()));
 
         this.localFiles.remove(fileId);
         return true;
@@ -294,7 +293,7 @@ public class Peer implements RemoteInterface {
 
                 SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
 
-                byte[] contents = MessageType.createPutFile(this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1,MessageType.generateMessageId());
+                byte[] contents = MessageType.createPutFile(this.peerId, file.getFileId(), this.address, Integer.toString(s.getLocalPort()), 1, MessageType.generateMessageId());
                 messageWriter.write(contents);
 
                 s.accept().getOutputStream().write(file.readCopyContent());
@@ -310,7 +309,104 @@ public class Peer implements RemoteInterface {
         }
     }
 
-    public void saveMetadata(int space){
+    public void readMetadata() {
+        try {
+            java.io.File dir = new java.io.File(peerId + "/stored");
+            java.io.File[] directoryListing = dir.listFiles();
+            if (directoryListing != null) {
+                for (java.io.File child : directoryListing) {
+                    if (!child.isDirectory()) {
+                        localCopies.put(child.getName(), new File(child.getName(), peerId + "", child.getTotalSpace()));
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+
+        }
+
+        try {
+            java.io.File dir = new java.io.File(peerId + "/.locals");
+            java.io.File[] directoryListing = dir.listFiles();
+            if (directoryListing != null) {
+                for (java.io.File child : directoryListing) {
+                    if (!child.isDirectory()) {
+                        Path path = Paths.get(peerId + "/.locals/" + child.getName());
+                        AsynchronousFileChannel fileChannel
+                                = null;
+                        try {
+                            fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                        ByteBuffer buffer = ByteBuffer.allocate(1024);
+
+                        fileChannel.read(
+                                buffer, 0, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+
+                                    @Override
+                                    public void completed(Integer result, ByteBuffer attachment) {
+                                        try {
+                                            byte[] res = new byte[result];
+                                            System.arraycopy(buffer.array(), 0, res, 0, result);
+                                            localFiles.put(child.getName(), new File(new String(res), peerId + "", child.getTotalSpace(), child.getName()));
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void failed(Throwable exc, ByteBuffer attachment) {
+                                    }
+                                });
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            Path path = Paths.get(peerId + "/.data");
+            AsynchronousFileChannel fileChannel
+                    = null;
+            try {
+                fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+
+            fileChannel.read(
+                    buffer, 0, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+
+                        @Override
+                        public void completed(Integer result, ByteBuffer attachment) {
+                            byte[] res = new byte[result];
+                            System.arraycopy(buffer.array(), 0, res, 0, result);
+                            space = Integer.parseInt(new String(res));
+                            saveMetadata(space);
+                            if (space > -1) {
+                                System.out.println("Max space:" + space);
+                            } else {
+                                System.out.println("Max space not defined");
+                            }
+                        }
+
+                        @Override
+                        public void failed(Throwable exc, ByteBuffer attachment) {
+                        }
+                    });
+        } catch (Exception e) {
+            saveMetadata(space);
+            if (space > -1) {
+                System.out.println("Max space:" + space);
+            } else {
+                System.out.println("Max space not defined");
+            }
+        }
+    }
+
+    public void saveMetadata(int space) {
         Path path = Paths.get(this.peerId + "/.data");
         AsynchronousFileChannel fileChannel = null;
         try {
@@ -320,7 +416,7 @@ public class Peer implements RemoteInterface {
             e.printStackTrace();
         }
 
-        byte[] data = (space+"").getBytes();
+        byte[] data = (space + "").getBytes();
 
         ByteBuffer buffer = ByteBuffer.allocate(data.length);
 
