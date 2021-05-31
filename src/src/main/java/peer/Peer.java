@@ -9,6 +9,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.MalformedURLException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
@@ -17,21 +18,21 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.rmi.Naming;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.server.UnicastRemoteObject;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
-public class Peer implements RemoteInterface {
+public class Peer extends UnicastRemoteObject implements RemoteInterface {
     private UnicastDispatcher dispatcher;
     private ChordHelper chordHelper;
     private ConcurrentHashMap<String, File> localFiles;
@@ -42,9 +43,10 @@ public class Peer implements RemoteInterface {
     private Chord chord;
     private String address;
     private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private CopyOnWriteArraySet<BigInteger> notStoredFiles = new CopyOnWriteArraySet<>();
 
-    public Peer(String address, int port, int id, Chord chord) {
-        System.out.println(id);
+    public Peer(String address, int port, int id, Chord chord) throws RemoteException {
+        super(0);
         this.localFiles = new ConcurrentHashMap<>();
         this.localCopies = new ConcurrentHashMap<>();
         this.maxSize = new AtomicLong(-1);
@@ -54,14 +56,30 @@ public class Peer implements RemoteInterface {
 
         this.chord = chord;
         this.peerId = id;
+        System.out.println(id);
         try {
-            Files.createDirectories(Path.of(peerId + "/"));
+            Files.createDirectories(Path.of(this.peerId + "/"));
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+
+        //todo fixme
+        try {
+            LocateRegistry.createRegistry(1099);
+        } catch (Exception e) {
+        }
+
+        try {
+            Naming.rebind(this.peerId + "", this);
+        } catch (RemoteException | MalformedURLException e) {
+            e.printStackTrace();
+            System.out.println("please run rmiregistry, exiting peer with error");
+            System.exit(1);
+        }
+
         readMetadata();
-        this.dispatcher = new UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize);
+        this.dispatcher = new UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.notStoredFiles);
     }
 
     public static void main(String args[]) throws IOException {
@@ -186,14 +204,12 @@ public class Peer implements RemoteInterface {
             e.printStackTrace();
         }
 
-        System.out.println("File " + filename + " bakced up successfully");
-        return "File " + filename + " bakced up successfully";
+        System.out.println("File " + filename + " backed up successfully");
+        return "File " + filename + " backed up successfully";
     }
 
     @Override
     public boolean Restore(String filename) throws IOException {
-
-
         TCPServer reader = new TCPServer();
 
         BigInteger fileId = null;
@@ -272,7 +288,7 @@ public class Peer implements RemoteInterface {
         TCPWriter t = new TCPWriter(destination.address, destination.port);
         t.write(MessageType.createDelete(this.peerId, fileId.toString(), this.localFiles.get(fileId.toString()).getReplicationDegree(), MessageType.generateMessageId()));
 
-        this.localFiles.remove(fileId);
+        this.localFiles.remove(fileId.toString());
         return true;
     }
 
@@ -303,7 +319,6 @@ public class Peer implements RemoteInterface {
                 this.localCopies.get(file.getFileId()).deleteFile();
                 this.localCopies.remove(file.getFileId());
 
-
                 if (this.currentSize.get() <= newMaxSize) {
                     break;
                 }
@@ -313,28 +328,28 @@ public class Peer implements RemoteInterface {
 
     public void readMetadata() {
         try {
-            java.io.File dir = new java.io.File(peerId + "/stored");
+            java.io.File dir = new java.io.File(this.peerId + "/stored");
             java.io.File[] directoryListing = dir.listFiles();
             if (directoryListing != null) {
                 for (java.io.File child : directoryListing) {
                     if (!child.isDirectory()) {
-                        currentSize.addAndGet(child.length());
-                        localCopies.put(child.getName(), new File(child.getName(), peerId + "", child.getTotalSpace()));
+                        this.currentSize.addAndGet(child.length());
+                        this.localCopies.put(child.getName(), new File(child.getName(), this.peerId + "", child.getTotalSpace()));
                     }
                 }
             }
-            System.out.println("Current Size: " + (long) (currentSize.get() / 1024) + " KiB");
+            System.out.println("Current Size: " + (long) (this.currentSize.get() / 1024) + " KiB");
         } catch (Exception ignored) {
 
         }
 
         try {
-            java.io.File dir = new java.io.File(peerId + "/.locals");
+            java.io.File dir = new java.io.File(this.peerId + "/.locals");
             java.io.File[] directoryListing = dir.listFiles();
             if (directoryListing != null) {
                 for (java.io.File child : directoryListing) {
                     if (!child.isDirectory()) {
-                        Path path = Paths.get(peerId + "/.locals/" + child.getName());
+                        Path path = Paths.get(this.peerId + "/.locals/" + child.getName());
                         AsynchronousFileChannel fileChannel
                                 = null;
                         fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
@@ -349,7 +364,7 @@ public class Peer implements RemoteInterface {
                                         try {
                                             byte[] res = new byte[result];
                                             System.arraycopy(buffer.array(), 0, res, 0, result);
-                                            localFiles.put(child.getName(), new File(new String(res), peerId + "", child.getTotalSpace(), child.getName()));
+                                            Peer.this.localFiles.put(child.getName(), new File(new String(res), Peer.this.peerId + "", child.getTotalSpace(), child.getName()));
                                         } catch (Exception e) {
                                             e.printStackTrace();
                                         }
@@ -365,7 +380,7 @@ public class Peer implements RemoteInterface {
         } catch (Exception ignored) {
         }
         try {
-            Path path = Paths.get(peerId + "/.data");
+            Path path = Paths.get(this.peerId + "/.data");
             AsynchronousFileChannel fileChannel
                     = null;
             fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
@@ -379,10 +394,10 @@ public class Peer implements RemoteInterface {
                         public void completed(Integer result, ByteBuffer attachment) {
                             byte[] res = new byte[result];
                             System.arraycopy(buffer.array(), 0, res, 0, result);
-                            maxSize.set(Integer.parseInt(new String(res)));
-                            saveMetadata(maxSize.get());
-                            if (maxSize.get() > -1) {
-                                System.out.println("Max space:" + maxSize.get());
+                            Peer.this.maxSize.set(Integer.parseInt(new String(res)));
+                            saveMetadata(Peer.this.maxSize.get());
+                            if (Peer.this.maxSize.get() > -1) {
+                                System.out.println("Max space:" + Peer.this.maxSize.get());
                             } else {
                                 System.out.println("Max space not defined");
                             }
@@ -393,9 +408,9 @@ public class Peer implements RemoteInterface {
                         }
                     });
         } catch (Exception e) {
-            saveMetadata(maxSize.get());
-            if (maxSize.get() > -1) {
-                System.out.println("Max space:" + maxSize.get());
+            saveMetadata(this.maxSize.get());
+            if (this.maxSize.get() > -1) {
+                System.out.println("Max space:" + this.maxSize.get());
             } else {
                 System.out.println("Max space not defined");
             }
@@ -450,16 +465,17 @@ public class Peer implements RemoteInterface {
         if (this.localFiles.size() > 0) {
             out += "\nMy Files: " + "\n";
             for (File f : this.localFiles.values()) {
-                out += "\n    Name:               " + f.getServerName() + "\n";
+                out += "\n    Name:               " + f.getFileName() + "\n";
                 out += "    FileID:             " + f.getFileId() + "\n";
                 out += "    Desired Rep Degree: " + f.getReplicationDegree() + "\n";
+                out += "    Size:               " + f.getFileSize() / 1024 + " KiB\n";
             }
         }
         if (this.localCopies.size() > 0) {
             out += "\nStored Files: " + "\n";
             for (File f : this.localCopies.values()) {
                 out += "\n    FileID:             " + f.getFileId() + "\n";
-                out += "    Size:               " + f.getFileSize() + "\n";
+                out += "    Size:               " + f.getFileSize() / 1024 + " KiB\n";
             }
         }
         return out;

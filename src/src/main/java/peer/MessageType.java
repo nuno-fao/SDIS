@@ -1,7 +1,6 @@
 package peer;
 
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -12,8 +11,8 @@ public enum MessageType {
     PUTFILE {
         @Override
         public int process(Header h, String[] argsList) throws ParseError {
-            this.processSender(h,argsList[1]);
-            this.proccessInitiator(h,argsList[2]);
+            this.processSender(h, argsList[1]);
+            this.proccessInitiator(h, argsList[2]);
             this.processFileID(h, argsList[3]);
             this.processReplicationDeg(h, argsList[4]);
             this.processAddress(h, argsList[5]);
@@ -24,8 +23,8 @@ public enum MessageType {
     },
     GETFILE {
         @Override
-        public int process(Header h, String[] argsList) throws  ParseError {
-            this.processSender(h,argsList[1]);
+        public int process(Header h, String[] argsList) throws ParseError {
+            this.processSender(h, argsList[1]);
             this.processFileID(h, argsList[2]);
             this.processAddress(h, argsList[3]);
             this.processPort(h, argsList[4]);
@@ -36,7 +35,7 @@ public enum MessageType {
     DELETE {
         @Override
         public int process(Header h, String[] argsList) throws ParseError {
-            this.processSender(h,argsList[1]);
+            this.processSender(h, argsList[1]);
             this.processFileID(h, argsList[2]);
             this.processReplicationDeg(h, argsList[3]);
             this.processMessageId(h, argsList[4]);
@@ -47,7 +46,7 @@ public enum MessageType {
         @Override
         public int process(Header h, String[] argsList) throws ParseError {
             this.proccessInitiator(h, argsList[1]);
-            this.processFileID(h,argsList[2]);
+            this.processFileID(h, argsList[2]);
             this.processReplicationDeg(h, argsList[3]);
             return 4;
         }
@@ -83,7 +82,7 @@ public enum MessageType {
      * @param port
      * @return string with a putchunk message
      */
-    public static byte[] createPutFile(int senderID, int initiator, String fileId, String address, String port, int replicationDegree, String messageId){
+    public static byte[] createPutFile(int senderID, int initiator, String fileId, String address, String port, int replicationDegree, String messageId) {
         return ("PUTFILE" + " " + senderID + " " + initiator + " " + fileId + " " + replicationDegree + " " + address + " " + port + " " + messageId + " \r\n\r\n").getBytes();
     }
 
@@ -93,7 +92,7 @@ public enum MessageType {
      * @param port
      * @return string with a getchunk message
      */
-    public static byte[] createGetFile(int senderID,String fileId, String address, String port, String messageId) {
+    public static byte[] createGetFile(int senderID, String fileId, String address, String port, String messageId) {
         return ("GETFILE" + " " + senderID + " " + fileId + " " + address + " " + port + " " + messageId + " \r\n\r\n").getBytes();
     }
 
@@ -101,8 +100,8 @@ public enum MessageType {
      * @param fileId
      * @return string with a delete message
      */
-    public static byte[] createDelete(int senderID,String fileId, int replicationDegree, String messageId) {
-        return ("DELETE" + " " + senderID + " " + fileId + " "+ replicationDegree +  " "+ messageId + " \r\n\r\n").getBytes();
+    public static byte[] createDelete(int senderID, String fileId, int replicationDegree, String messageId) {
+        return ("DELETE" + " " + senderID + " " + fileId + " " + replicationDegree + " " + messageId + " \r\n\r\n").getBytes();
     }
 
     /**
@@ -110,7 +109,7 @@ public enum MessageType {
      * @return string with a delete message
      */
     public static byte[] createPutError(int initiator, String fileId, int replicationDegree) {
-        return ("PUTERROR"+ " " + initiator + " " + fileId + " " + replicationDegree + " \r\n\r\n").getBytes();
+        return ("PUTERROR" + " " + initiator + " " + fileId + " " + replicationDegree + " \r\n\r\n").getBytes();
     }
 
     public abstract int process(Header h, String[] argsList) throws ParseError;
@@ -140,11 +139,10 @@ public enum MessageType {
     }
 
     void processSender(Header h, String sender) throws ParseError {
-        try{
+        try {
             int s = Integer.parseInt(sender);
             h.setSender(s);
-        }
-        catch (Exception e){
+        } catch (Exception e) {
             throw new ParseError();
         }
     }
@@ -156,6 +154,7 @@ public enum MessageType {
             throw new ParseError();
         }
     }
+
     void processMessageId(Header h, String messageId) throws ParseError {
         try {
             h.setMessageId(messageId);
@@ -164,23 +163,24 @@ public enum MessageType {
         }
     }
 
-    void proccessInitiator(Header h, String messageId) throws ParseError {
+    void proccessInitiator(Header h, String initiatorId) throws ParseError {
         try {
-            h.setMessageId(messageId);
+            h.setInitiator(Integer.parseInt(initiatorId));
         } catch (Exception e) {
             throw new ParseError();
         }
     }
 
-    public static String generateMessageId(){
-        MessageDigest algo = null;
+    public static String generateMessageId() {
         try {
-            algo = MessageDigest.getInstance("SHA-256");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(("" + System.nanoTime()).getBytes());
+            BigInteger num = new BigInteger(1, digest);
+            return num.toString();
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            System.out.println("Invalid algorithm");
         }
-
-        return new String(algo.digest(String.valueOf(System.nanoTime()).getBytes(StandardCharsets.UTF_8)));
+        return "";
     }
 
 }

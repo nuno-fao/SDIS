@@ -8,10 +8,9 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
-import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.math.BigInteger;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -27,8 +26,9 @@ public class Handler {
     private AtomicLong maxSize;
     private AtomicLong currentSize;
     private ConcurrentHashMap<String, Boolean> receivedMessages;
+    private CopyOnWriteArraySet<BigInteger> notStoredFiles;
 
-    Handler(byte[] message, int peerId, Chord chord, Address address, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
+    Handler(byte[] message, int peerId, Chord chord, Address address, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize, ConcurrentHashMap<String, Boolean> receivedMessages, CopyOnWriteArraySet<BigInteger> notStoredFiles) {
         this.message = message;
         this.peerId = peerId;
         this.chord = chord;
@@ -37,7 +37,8 @@ public class Handler {
         this.localCopies = localCopies;
         this.maxSize = maxSize;
         this.currentSize = currentSize;
-        this.receivedMessages = new ConcurrentHashMap<>();
+        this.receivedMessages = receivedMessages;
+        this.notStoredFiles = notStoredFiles;
     }
 
     public void processMessage() {
@@ -46,23 +47,22 @@ public class Handler {
             this.chord.processMessage(this.message);
             return;
         }
-        System.out.println(stringMessage);
 
         Header headers = HeaderConcrete.getHeaders(new String(this.message));
 
-        if (this.receivedMessages.containsKey(headers.getMessageId())){
-
-            if(headers.getMessageType() == MessageType.PUTFILE ){
-                Node successor = this.chord.FindSuccessor(headers.getInitiator());
-                TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
-                byte[] contents;
-                contents = MessageType.createPutError(headers.getInitiator(),headers.getFileID(),headers.getReplicationDeg());
-                tcpWriter.write(contents);
+        if (headers.getMessageType() != MessageType.PUTERROR) {
+            if (this.receivedMessages.containsKey(headers.getMessageId())) {
+                if (headers.getMessageType() == MessageType.PUTFILE) {
+                    Node successor = this.chord.FindSuccessor(headers.getInitiator());
+                    TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
+                    byte[] contents;
+                    contents = MessageType.createPutError(headers.getInitiator(), headers.getFileID(), headers.getReplicationDeg());
+                    tcpWriter.write(contents);
+                }
+                return;
+            } else {
+                this.receivedMessages.put(headers.getMessageId(), true);
             }
-            return;
-        }
-        else{
-            this.receivedMessages.put(headers.getMessageId(),true);
         }
 
         switch (headers.getMessageType()) {
@@ -71,7 +71,7 @@ public class Handler {
                 break;
             }
             case PUTFILE: {
-                new PutFileHandler(this.chord, headers.getInitiator() ,headers.getFileID(), this.peerId, headers.getReplicationDeg(), this.address, new Address(headers.getAddress(), headers.getPort()), headers.getMessageId(), this.localFiles, this.localCopies);
+                new PutFileHandler(this.chord, headers.getInitiator(), headers.getFileID(), this.peerId, headers.getReplicationDeg(), this.address, new Address(headers.getAddress(), headers.getPort()), headers.getMessageId(), this.localFiles, this.localCopies);
                 break;
             }
             case DELETE: {
@@ -79,7 +79,7 @@ public class Handler {
                 break;
             }
             case PUTERROR: {
-                new PutErrorHandler(this.peerId, headers.getInitiator(), headers.getFileID(), headers.getReplicationDeg(), this.chord);
+                new PutErrorHandler(this.peerId, headers.getInitiator(), headers.getFileID(), headers.getReplicationDeg(), this.chord, this.notStoredFiles);
             }
         }
     }
@@ -93,7 +93,7 @@ class PutFileHandler {
     private ConcurrentHashMap<String, File> localCopies, localFiles;
     private String messageId;
 
-    public PutFileHandler(Chord chord, int initiator ,String fileId, int peerId, int repDegree, Address localAddress, Address remoteAddress, String messageId, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies) {
+    public PutFileHandler(Chord chord, int initiator, String fileId, int peerId, int repDegree, Address localAddress, Address remoteAddress, String messageId, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies) {
         this.fileId = fileId;
         this.peerId = peerId;
         this.local = localAddress;
@@ -131,7 +131,7 @@ class PutFileHandler {
 
         System.out.println("Propagating with RepDegree: " + replicationDegree);
 
-        byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree,this.messageId);
+        byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree, this.messageId);
         messageWriter.write(contents);
 
         s.accept().getOutputStream().write(data);
@@ -168,7 +168,6 @@ class PutFileHandler {
             }
 
             if (!shallWrite) {
-                System.out.println("propagate");
                 this.PropagateSend(out.toByteArray(), this.repDegree);
                 return this.localFiles.get(this.fileId);
             } else if (this.repDegree > 1) {
@@ -198,7 +197,7 @@ class GetFileHandler {
         this.localCopies = localCopies;
         this.peerId = peerId;
         this.chord = chord;
-
+        this.messageId = messageId;
 
 
         if (!this.hasCopy()) {
@@ -216,15 +215,15 @@ class GetFileHandler {
         Node successor = this.chord.getSuccessor();
         TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
         byte[] contents;
-        contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port),this.messageId);
+        contents = MessageType.createGetFile(this.peerId, this.fileId, this.address, Integer.toString(this.port), this.messageId);
 
         tcpWriter.write(contents);
     }
 
     public void sendFile() {
         try {
-            SSLSocket socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(this.address,this.port);
-            final java.io.File myFile = new java.io.File(peerId+"/stored/"+fileId); //sdcard/DCIM.JPG
+            SSLSocket socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(this.address, this.port);
+            final java.io.File myFile = new java.io.File(this.peerId + "/stored/" + this.fileId); //sdcard/DCIM.JPG
             byte[] mybytearray = new byte[30000];
             FileInputStream fis = new FileInputStream(myFile);
             BufferedInputStream bis = new BufferedInputStream(fis);
@@ -266,12 +265,11 @@ class DeleteHandler {
         this.chord = chord;
         this.messageId = messageId;
 
-        System.out.println("Deleting");
-
         if (!this.hasCopy()) {
             this.resendMessage();
         } else {
             this.deleteFile();
+            System.out.println("Deleting file " + fileId);
             if (this.replicationDegree > 0) {
                 this.resendMessage();
             }
@@ -286,12 +284,11 @@ class DeleteHandler {
         Node successor = this.chord.getSuccessor();
         TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
         byte[] contents;
-        contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree,this.messageId);
+        contents = MessageType.createDelete(this.peerId, this.fileId, this.replicationDegree, this.messageId);
         tcpWriter.write(contents);
     }
 
     public void deleteFile() {
-        System.out.println("1 Deleting");
         this.localCopies.get(this.fileId).deleteFile();
         this.replicationDegree--;
         this.localCopies.remove(this.fileId);
@@ -299,31 +296,31 @@ class DeleteHandler {
 
 }
 
-class PutErrorHandler{
+class PutErrorHandler {
     private int peerId, replicationDeg, initiator;
     private String fileId;
     private Chord chord;
 
-    public PutErrorHandler(int peerId, int initiator, String fileId, Integer replicationDeg, Chord chord) {
-        this.peerId=peerId;
-        this.replicationDeg=replicationDeg;
-        this.initiator=initiator;
-        this.fileId=fileId;
+    public PutErrorHandler(int peerId, int initiator, String fileId, Integer replicationDeg, Chord chord, CopyOnWriteArraySet<BigInteger> notStoredFiles) {
+        this.peerId = peerId;
+        this.replicationDeg = replicationDeg;
+        this.initiator = initiator;
+        this.fileId = fileId;
         this.chord = chord;
 
-        if(this.peerId==this.initiator){
-            System.out.println("Error maintaining replication degree of file with ID "+this.fileId);
-        }
-        else{
-            resendMessage();
+        if (this.peerId == this.initiator) {
+            System.out.println("Error maintaining replication degree, missing " + replicationDeg + " copies of file with ID " + this.fileId);
+            notStoredFiles.add(new BigInteger(this.fileId));
+        } else {
+            // resendMessage();
         }
     }
 
-    public void resendMessage(){
-        Node successor = this.chord.FindSuccessor(initiator);
+    public void resendMessage() {
+        Node successor = this.chord.FindSuccessor(this.initiator);
         TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
         byte[] contents;
-        contents = MessageType.createPutError(initiator,fileId,replicationDeg);
+        contents = MessageType.createPutError(this.initiator, this.fileId, this.replicationDeg);
         tcpWriter.write(contents);
     }
 }

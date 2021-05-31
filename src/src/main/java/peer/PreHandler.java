@@ -4,8 +4,9 @@ import javax.net.ssl.SSLSocket;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.net.Socket;
+import java.math.BigInteger;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PreHandler implements Runnable {
@@ -17,8 +18,10 @@ public class PreHandler implements Runnable {
     private ConcurrentHashMap<String, File> localCopies;
     private AtomicLong maxSize;
     private AtomicLong currentSize;
+    private CopyOnWriteArraySet<BigInteger> notStoredFiles;
+    private ConcurrentHashMap<String, Boolean> receivedMessages;
 
-    public PreHandler(SSLSocket socket, int peerId, Chord chord, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
+    public PreHandler(SSLSocket socket, int peerId, Chord chord, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize, ConcurrentHashMap<String, Boolean> receivedMessages, CopyOnWriteArraySet<BigInteger> notStoredFiles) {
         this.socket = socket;
         this.peerId = peerId;
         this.chord = chord;
@@ -26,6 +29,8 @@ public class PreHandler implements Runnable {
         this.localCopies = localCopies;
         this.maxSize = maxSize;
         this.currentSize = currentSize;
+        this.notStoredFiles = notStoredFiles;
+        this.receivedMessages = receivedMessages;
     }
 
     @Override
@@ -55,7 +60,7 @@ public class PreHandler implements Runnable {
 
 
     private void processMessage() {
-        Handler handler = new Handler(this.message, this.peerId, this.chord, new Address(this.socket.getLocalAddress().getHostAddress(), 0), this.localFiles, this.localCopies, this.maxSize, this.currentSize);
+        Handler handler = new Handler(this.message, this.peerId, this.chord, new Address(this.socket.getLocalAddress().getHostAddress(), 0), this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.receivedMessages, this.notStoredFiles);
         handler.processMessage();
     }
 

@@ -144,11 +144,7 @@ public class File {
     public int getReplicationDegree() {
         return replicationDegree;
     }
-
-    public String getServerName() {
-        return this.serverName;
-    }
-
+    
     public byte[] readCopyContent() {
         Path file = Path.of(serverName + "/" + "stored" + "/" + fileId);
         try {

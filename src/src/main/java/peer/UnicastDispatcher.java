@@ -4,8 +4,9 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
-import java.net.Socket;
+import java.math.BigInteger;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -20,14 +21,17 @@ public class UnicastDispatcher implements Runnable {
     private ConcurrentHashMap<String, File> localCopies;
     private AtomicLong maxSize;
     private AtomicLong currentSize;
+    private CopyOnWriteArraySet<BigInteger> notStoredFiles;
+    private ConcurrentHashMap<String, Boolean> receivedMessages = new ConcurrentHashMap<>();
 
-    public UnicastDispatcher(int port, int peerId, Chord chord, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
+    public UnicastDispatcher(int port, int peerId, Chord chord, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize, CopyOnWriteArraySet<BigInteger> notStoredFiles) {
         this.peerId = peerId;
         this.chord = chord;
         this.localFiles = localFiles;
         this.localCopies = localCopies;
         this.maxSize = maxSize;
         this.currentSize = currentSize;
+        this.notStoredFiles = notStoredFiles;
         try {
             this.serverSocket = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(port);
             this.serverSocket.setNeedClientAuth(true);
@@ -45,7 +49,7 @@ public class UnicastDispatcher implements Runnable {
             try {
                 SSLSocket socket;
                 socket = (SSLSocket) this.serverSocket.accept();
-                this.pool.execute(new PreHandler(socket, this.peerId, this.chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize));
+                this.pool.execute(new PreHandler(socket, this.peerId, this.chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.receivedMessages, this.notStoredFiles));
             } catch (Exception e) {
                 e.printStackTrace();
             }

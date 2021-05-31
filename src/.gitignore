@@ -7,3 +7,5 @@ bin
 org.eclipse.*
 build/
 [0-9]*/
+test.deb
+test1.deb
