@@ -55,7 +55,6 @@ public class TCPWriter {
             try {
                 in.readLine();
             } catch (IOException e) {
-                System.out.println("Error receiving response");
             }
 
             this.socket.shutdownOutput();

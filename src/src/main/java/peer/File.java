@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -43,17 +44,22 @@ public class File {
         this.fileSize = fileSize;
     }
 
-    public File(String fileInfo, String serverName, long fileSize, String fileId) throws Exception {
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public File(String fileInfo, String serverName, String fileId) throws Exception {
         var i = fileInfo.split(";");
         try {
             Files.createDirectories(Path.of(serverName + "/stored"));
         } catch (IOException e) {
         }
         this.fileId = fileId;
-        this.fileSize = fileSize;
+        this.fileSize = this.fileSize;
 
         this.fileName = i[0];
         this.replicationDegree = Integer.parseInt(i[1]);
+        this.fileSize = Integer.parseInt(i[2]);
     }
 
     /**
@@ -74,8 +80,9 @@ public class File {
     /**
      * deletes the file and metadata
      */
-    public void deleteFile() {
+    public void deleteFile(AtomicLong currentSize) {
         try {
+            currentSize.getAndAdd(-this.fileSize);
             Files.deleteIfExists(Path.of(this.serverName + "/stored/" + this.fileId));
             Files.deleteIfExists(Path.of(this.serverName + "/.locals/" + this.fileId));
         } catch (IOException e) {
@@ -113,7 +120,7 @@ public class File {
             e.printStackTrace();
         }
 
-        byte[] data = (this.fileName + ";" + this.replicationDegree).getBytes();
+        byte[] data = (this.fileName + ";" + this.replicationDegree + ";" + this.fileSize).getBytes();
 
         ByteBuffer buffer = ByteBuffer.allocate(data.length);
 
@@ -142,11 +149,11 @@ public class File {
     }
 
     public int getReplicationDegree() {
-        return replicationDegree;
+        return this.replicationDegree;
     }
-    
+
     public byte[] readCopyContent() {
-        Path file = Path.of(serverName + "/" + "stored" + "/" + fileId);
+        Path file = Path.of(this.serverName + "/" + "stored" + "/" + this.fileId);
         try {
             byte[] contents = Files.readAllBytes(file);
             return contents;

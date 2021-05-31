@@ -303,8 +303,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             });
 
             for (File file : copies) {
-                this.currentSize.addAndGet(-file.getFileSize());
-
                 Node successor = this.chord.getSuccessor();
                 TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);
 
@@ -316,7 +314,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
                 s.accept().getOutputStream().write(file.readCopyContent());
 
-                this.localCopies.get(file.getFileId()).deleteFile();
+                this.localCopies.get(file.getFileId()).deleteFile(this.currentSize);
                 this.localCopies.remove(file.getFileId());
 
                 if (this.currentSize.get() <= newMaxSize) {
@@ -334,7 +332,8 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                 for (java.io.File child : directoryListing) {
                     if (!child.isDirectory()) {
                         this.currentSize.addAndGet(child.length());
-                        this.localCopies.put(child.getName(), new File(child.getName(), this.peerId + "", child.getTotalSpace()));
+                        System.out.println(child.length());
+                        this.localCopies.put(child.getName(), new File(child.getName(), this.peerId + "", child.length()));
                     }
                 }
             }
@@ -364,7 +363,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                                         try {
                                             byte[] res = new byte[result];
                                             System.arraycopy(buffer.array(), 0, res, 0, result);
-                                            Peer.this.localFiles.put(child.getName(), new File(new String(res), Peer.this.peerId + "", child.getTotalSpace(), child.getName()));
+                                            Peer.this.localFiles.put(child.getName(), new File(new String(res), Peer.this.peerId + "", child.getName()));
                                         } catch (Exception e) {
                                             e.printStackTrace();
                                         }
@@ -460,7 +459,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         String out = "";
         out += ("Peer current storage information\n");
         out += "Max Size: " + this.maxSize.get() + "\n";
-        out += "Current Size: " + this.currentSize.get() + "\n";
+        out += "Current Size: " + this.currentSize.get() / 1024 + " KiB\n";
 
         if (this.localFiles.size() > 0) {
             out += "\nMy Files: " + "\n";

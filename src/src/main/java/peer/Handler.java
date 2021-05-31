@@ -9,6 +9,8 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -71,11 +73,11 @@ public class Handler {
                 break;
             }
             case PUTFILE: {
-                new PutFileHandler(this.chord, headers.getInitiator(), headers.getFileID(), this.peerId, headers.getReplicationDeg(), this.address, new Address(headers.getAddress(), headers.getPort()), headers.getMessageId(), this.localFiles, this.localCopies);
+                new PutFileHandler(this.chord, headers.getInitiator(), headers.getFileID(), this.peerId, headers.getReplicationDeg(), this.address, new Address(headers.getAddress(), headers.getPort()), headers.getMessageId(), this.localFiles, this.localCopies, this.maxSize, this.currentSize);
                 break;
             }
             case DELETE: {
-                new DeleteHandler(this.peerId, headers.getFileID(), headers.getReplicationDeg(), headers.getMessageId(), this.localCopies, this.chord);
+                new DeleteHandler(this.peerId, headers.getFileID(), headers.getReplicationDeg(), headers.getMessageId(), this.localCopies, this.chord, this.currentSize);
                 break;
             }
             case PUTERROR: {
@@ -92,8 +94,9 @@ class PutFileHandler {
     private Chord chord;
     private ConcurrentHashMap<String, File> localCopies, localFiles;
     private String messageId;
+    private AtomicLong maxSize, currentSize;
 
-    public PutFileHandler(Chord chord, int initiator, String fileId, int peerId, int repDegree, Address localAddress, Address remoteAddress, String messageId, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies) {
+    public PutFileHandler(Chord chord, int initiator, String fileId, int peerId, int repDegree, Address localAddress, Address remoteAddress, String messageId, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize) {
         this.fileId = fileId;
         this.peerId = peerId;
         this.local = localAddress;
@@ -104,6 +107,8 @@ class PutFileHandler {
         this.localFiles = localFiles;
         this.messageId = messageId;
         this.initiator = initiator;
+        this.currentSize = currentSize;
+        this.maxSize = maxSize;
 
         if (localCopies.containsKey(fileId)) {
             return;
@@ -115,10 +120,12 @@ class PutFileHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        try {
-            localCopies.put(f.getFileId(), f);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (f != null) {
+            try {
+                localCopies.put(f.getFileId(), f);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -143,6 +150,7 @@ class PutFileHandler {
 
             InputStream in;
             int bufferSize = 0;
+            int fileSize = 0;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             boolean shallWrite = !this.localFiles.containsKey(this.fileId);
 
@@ -159,6 +167,7 @@ class PutFileHandler {
                 clientData.readLong();
                 out.write(new byte[8]);
                 while ((read = clientData.read(buffer)) != -1) {
+                    fileSize += read;
                     if (shallWrite)
                         output.write(buffer, 0, read);
                     out.write(buffer, 0, read);
@@ -167,11 +176,17 @@ class PutFileHandler {
                 e.printStackTrace();
             }
 
+            file.setFileSize(fileSize);
+            this.currentSize.getAndAdd(fileSize);
+
             if (!shallWrite) {
                 this.PropagateSend(out.toByteArray(), this.repDegree);
                 return this.localFiles.get(this.fileId);
             } else if (this.repDegree > 1) {
                 this.PropagateSend(out.toByteArray(), this.repDegree - 1);
+            }
+            if (this.maxSize.get() > -1 && this.maxSize.get() < this.currentSize.get()) {
+                Files.deleteIfExists(Path.of(this.peerId + "/stored/" + this.fileId));
             }
             return file;
         }
@@ -256,14 +271,16 @@ class DeleteHandler {
     private int peerId;
     private Chord chord;
     private String messageId;
+    private AtomicLong currentSize;
 
-    public DeleteHandler(int peerId, String fileId, int replicationDegree, String messageId, ConcurrentHashMap<String, File> localCopies, Chord chord) {
+    public DeleteHandler(int peerId, String fileId, int replicationDegree, String messageId, ConcurrentHashMap<String, File> localCopies, Chord chord, AtomicLong currentSize) {
         this.fileId = fileId;
         this.replicationDegree = replicationDegree;
         this.localCopies = localCopies;
         this.peerId = peerId;
         this.chord = chord;
         this.messageId = messageId;
+        this.currentSize = currentSize;
 
         if (!this.hasCopy()) {
             this.resendMessage();
@@ -289,7 +306,7 @@ class DeleteHandler {
     }
 
     public void deleteFile() {
-        this.localCopies.get(this.fileId).deleteFile();
+        this.localCopies.get(this.fileId).deleteFile(this.currentSize);
         this.replicationDegree--;
         this.localCopies.remove(this.fileId);
     }
