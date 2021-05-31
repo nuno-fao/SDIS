@@ -6,7 +6,7 @@ public interface Header {
 
     void setMessageType(MessageType messageType);
 
-    void setMessageId(String firstPeer);
+    void setMessageId(String messageId);
 
     String getMessageId();
 
@@ -26,9 +26,12 @@ public interface Header {
 
     void setAddress(String address);
 
-
     int getSender();
 
     void setSender(int sender);
+
+    Integer getInitiator();
+
+    void setInitiator(Integer initiator);
 
 }
