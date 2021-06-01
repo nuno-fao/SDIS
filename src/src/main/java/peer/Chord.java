@@ -3,7 +3,15 @@ package peer;
 import peer.tcp.TCPWriter;
 
 import java.io.IOException;
+
 import java.util.concurrent.locks.ReentrantLock;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.ConnectException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Chord {
     public static int m = 5;
@@ -374,14 +382,44 @@ class Node {
         this.id = id;
     }
 
-    public Node(String stringRepresentation) {
-        String[] parts = stringRepresentation.split(":");
-        String address = parts[0];
-        int port = Integer.parseInt(parts[1]);
-        Integer id = Integer.valueOf(parts[2]);
+    public Node(String stringRepresentation)
+    {
+        int colonCount = 0;
+        for (int i = 0; i < stringRepresentation.length(); i++)
+        {
+            if (stringRepresentation.charAt(i) == ':') colonCount++;
+        }
 
-        this.address = new Address(address, port);
-        this.id = id;
+        if (colonCount == 2)
+        {
+            String[] parts = stringRepresentation.split(":");
+            String address = parts[0];
+            int port = Integer.parseInt(parts[1]);
+            Integer id = Integer.valueOf(parts[2]);
+            
+            this.address = new Address(address, port);
+            this.id = id; 
+        }
+        else
+        {
+            String[] parts = stringRepresentation.split(":");
+            String address = parts[0];
+            int port = Integer.parseInt(parts[1]);
+
+            try
+            {
+                MessageDigest md = MessageDigest.getInstance("SHA-1");
+                byte[] digest = md.digest((address + ":" + port).getBytes());
+                BigInteger num = new BigInteger(1, digest);
+                this.id = num.mod(BigDecimal.valueOf(Math.pow(2, Chord.m)).toBigInteger()).intValue();
+            }
+            catch (NoSuchAlgorithmException e)
+            {
+                System.out.println("Invalid algorithm");
+            }
+            this.address = new Address(address, port);
+        }
+
     }
 
     @Override
