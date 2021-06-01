@@ -9,6 +9,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class TCPWriter {
     private SSLSocket socket;
@@ -44,27 +47,29 @@ public class TCPWriter {
     }
 
     public void write(byte[] message) {
-        try {
-            PrintWriter out; // output stream
-            BufferedReader in; // input stream
-            out = new PrintWriter(this.socket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
-
-            out.println(new String(message));
-
+        Executors.newSingleThreadScheduledExecutor().schedule(new Thread(() -> {
             try {
-                in.readLine();
-            } catch (IOException e) {
+                PrintWriter out; // output stream
+                BufferedReader in; // input stream
+                out = new PrintWriter(this.socket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+
+                out.println(new String(message));
+
+                try {
+                    in.readLine();
+                } catch (IOException e) {
+                }
+
+                this.socket.shutdownOutput();
+                while (in.readLine() != null) ;
+                out.close();
+                in.close();
+
+                this.socket.close();
+            } catch (Exception e) {
             }
-
-            this.socket.shutdownOutput();
-            while (in.readLine() != null) ;
-            out.close();
-            in.close();
-
-            this.socket.close();
-        } catch (Exception e) {
-        }
+        }), new Random().nextInt(20), TimeUnit.MILLISECONDS);
     }
 
     public void write(byte[] message, boolean shouldThrow) throws IOException {

@@ -52,7 +52,6 @@ public class UnicastDispatcher implements Runnable {
                 socket = (SSLSocket) this.serverSocket.accept();
                 this.pool.execute(new PreHandler(socket, this.peerId, this.chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.receivedMessages, this.notStoredFiles));
             } catch (Exception e) {
-                e.printStackTrace();
             }
         }
     }

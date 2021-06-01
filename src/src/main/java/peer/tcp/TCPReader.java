@@ -10,15 +10,12 @@ public class TCPReader {
     private String address;
     private int port;
 
-    public TCPReader(String address, int port) {
+    public TCPReader(String address, int port) throws IOException {
         this.address = address;
         this.port = port;
 
-        try {
-            this.socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address, port);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address, port);
+
 
     }
 

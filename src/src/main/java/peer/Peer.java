@@ -105,18 +105,49 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         }
 
         readMetadata();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            ScheduledExecutorService e = Executors.newSingleThreadScheduledExecutor();
+            ExecutorService ex = Executors.newFixedThreadPool(10);
+            try {
+                if (this.localCopies.size() == 0)
+                    return;
+                for (File file : this.localCopies.values()) {
+                    ex.execute(new Thread(() -> {
+                        try {
+                            sendFile(this.peerId + "/stored/" + file.getFileId(), 1, new BigInteger(file.getFileId()));
+                        } catch (Exception ignored) {
+
+                        }
+                    }));
+                }
+                e.schedule(
+                        new Thread(() -> {
+                            for (File file : this.localCopies.values()) {
+                                if (!this.notStoredFiles.contains(new BigInteger(file.getFileId()))) {
+                                    file.deleteFile(this.currentSize);
+                                    this.localCopies.remove(file.getFileId());
+                                }
+                            }
+                        }), 5, TimeUnit.SECONDS
+                );
+                e.awaitTermination(6, TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
+        }));
+
         this.dispatcher = new UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.notStoredFiles);
+
     }
 
     public static void main(String args[]) throws IOException {
-        String address = args[0];
-        int port = Integer.parseInt(args[1]);
-        int id = 0;
-
         System.setProperty("javax.net.ssl.keyStore", "keys/server.keys");
         System.setProperty("javax.net.ssl.keyStorePassword", "123456");
         System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "123456");
+        String address = args[0];
+        int port = Integer.parseInt(args[1]);
+        int id = 0;
 
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
@@ -230,9 +261,11 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             while ((read = dis.read(mybytearray)) != -1) {
                 dos.write(mybytearray, 0, read);
             }
+            dos.close();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("error");
+            //e.printStackTrace();
         }
     }
 
@@ -285,7 +318,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("Received File");
+        System.out.println("Received File " + filename);
 
         return true;
     }
