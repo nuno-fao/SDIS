@@ -3,17 +3,12 @@ package peer;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousFileChannel;
-import java.nio.channels.CompletionHandler;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static java.nio.file.StandardOpenOption.*;
 
 /**
  * Used to store metadata from files that the peer has backed up
@@ -110,41 +105,15 @@ public class File {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        Path path = Paths.get(this.serverName + "/.locals/" + this.fileId);
-        AsynchronousFileChannel fileChannel = null;
+        byte[] data = (this.fileName + ";" + this.replicationDegree + ";" + this.fileSize).getBytes();
+        ByteBuffer buffer = ByteBuffer.allocate(data.length);
+        buffer.put(data);
+        buffer.flip();
         try {
-            fileChannel = AsynchronousFileChannel.open(
-                    path, WRITE, TRUNCATE_EXISTING, CREATE);
+            Peer.write(this.serverName + "/.locals/" + this.fileId, buffer, 0, true, data.length);
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        byte[] data = (this.fileName + ";" + this.replicationDegree + ";" + this.fileSize).getBytes();
-
-        ByteBuffer buffer = ByteBuffer.allocate(data.length);
-
-        buffer.put(data);
-        buffer.flip();
-
-        fileChannel.write(buffer, 0, fileChannel, new CompletionHandler<Integer, AsynchronousFileChannel>() {
-            @Override
-            public void completed(Integer result, AsynchronousFileChannel attachment) {
-                try {
-                    attachment.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void failed(Throwable exc, AsynchronousFileChannel attachment) {
-                try {
-                    attachment.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
     }
 
     public int getReplicationDegree() {

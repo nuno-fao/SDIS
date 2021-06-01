@@ -10,6 +10,7 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -54,7 +55,6 @@ public class Handler {
 
         if (headers.getMessageType() != MessageType.PUTERROR) {
             if (this.receivedMessages.containsKey(headers.getMessageId())) {
-                System.out.println(new String(this.message));
                 if (headers.getMessageType() == MessageType.PUTFILE) {
                     Node successor = this.chord.FindSuccessor(headers.getInitiator());
                     TCPWriter tcpWriter = new TCPWriter(successor.address.address, successor.address.port);
@@ -153,7 +153,7 @@ class PutFileHandler {
 
             InputStream in;
             int bufferSize = 0;
-            int fileSize = 0;
+            long fileSize = 0;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             boolean shallWrite = !this.localFiles.containsKey(this.fileId) && !this.localCopies.containsKey(this.fileId);
 
@@ -162,18 +162,18 @@ class PutFileHandler {
                 bufferSize = reader.getSocket().getReceiveBufferSize();
                 in = reader.getSocket().getInputStream();
                 DataInputStream clientData = new DataInputStream(in);
-                OutputStream output = null;
+                AsynchronousFileChannel output = null;
+
                 long size = clientData.readLong();
                 shallWrite &= (this.maxSize.get() == -1 || this.maxSize.get() > this.currentSize.get() + size);
-                if (shallWrite)
-                    output = new FileOutputStream(this.peerId + "/stored/" + this.fileId);
                 byte[] buffer = new byte[bufferSize];
                 int read;
                 out.write(longToBytes(size));
                 while ((read = clientData.read(buffer)) != -1) {
                     fileSize += read;
-                    if (shallWrite)
-                        output.write(buffer, 0, read);
+                    if (shallWrite) {
+                        Peer.write(this.peerId + "/stored/" + this.fileId, ByteBuffer.wrap(buffer.clone(), 0, read), fileSize - read, false, read);
+                    }
                     out.write(buffer, 0, read);
                 }
             } catch (IOException e) {
@@ -182,8 +182,6 @@ class PutFileHandler {
 
             file.setFileSize(fileSize);
             if (!shallWrite) {
-                System.out.println("batata doce");
-                System.out.println(out.size());
                 this.PropagateSend(out.toByteArray(), this.repDegree);
                 return this.localFiles.get(this.fileId);
             } else if (this.repDegree > 1) {

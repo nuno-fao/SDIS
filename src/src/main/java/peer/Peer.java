@@ -42,6 +42,35 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private CopyOnWriteArraySet<BigInteger> notStoredFiles = new CopyOnWriteArraySet<>();
 
+    public static void write(String path, ByteBuffer byteBuffer, long offset, boolean truncate, int size) throws IOException {
+        AsynchronousFileChannel output;
+        if (truncate) {
+            output = AsynchronousFileChannel.open(Path.of(path), WRITE, TRUNCATE_EXISTING, CREATE);
+        } else {
+            output = AsynchronousFileChannel.open(Path.of(path), WRITE, CREATE);
+        }
+        byteBuffer = byteBuffer.limit(size);
+        output.write(byteBuffer, offset, output, new CompletionHandler<Integer, AsynchronousFileChannel>() {
+            @Override
+            public void completed(Integer result, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void failed(Throwable exc, AsynchronousFileChannel attachment) {
+                try {
+                    attachment.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
     public Peer(String address, int port, int id, Chord chord) throws RemoteException {
         super(0);
         this.localFiles = new ConcurrentHashMap<>();
@@ -53,7 +82,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
         this.chord = chord;
         this.peerId = id;
-        System.out.println(id);
+        System.out.println("Peer: " + id);
         try {
             Files.createDirectories(Path.of(this.peerId + "/"));
         } catch (IOException e) {
@@ -83,6 +112,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         String address = args[0];
         int port = Integer.parseInt(args[1]);
         int id = 0;
+
         System.setProperty("javax.net.ssl.keyStore", "keys/server.keys");
         System.setProperty("javax.net.ssl.keyStorePassword", "123456");
         System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
@@ -242,15 +272,15 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             bufferSize = reader.getSocket().getReceiveBufferSize();
             in = reader.getSocket().getInputStream();
             DataInputStream clientData = new DataInputStream(in);
-            OutputStream output;
-            output = new FileOutputStream(this.peerId + "/restored/" + filename);
             byte[] buffer = new byte[bufferSize];
             int read;
             clientData.readLong();
             out.write(new byte[8]);
+            long fileSize = 0;
             while ((read = clientData.read(buffer)) != -1) {
-                output.write(buffer, 0, read);
+                Peer.write(this.peerId + "/restored/" + filename, ByteBuffer.wrap(buffer.clone(), 0, read), fileSize, false, read);
                 out.write(buffer, 0, read);
+                fileSize += read;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -322,7 +352,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                 for (java.io.File child : directoryListing) {
                     if (!child.isDirectory()) {
                         this.currentSize.addAndGet(child.length());
-                        System.out.println(child.length());
                         this.localCopies.put(child.getName(), new File(child.getName(), this.peerId + "", child.length()));
                     }
                 }

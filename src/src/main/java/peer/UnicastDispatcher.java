@@ -36,6 +36,7 @@ public class UnicastDispatcher implements Runnable {
             this.serverSocket = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(port);
             this.serverSocket.setNeedClientAuth(true);
             this.serverSocket.setEnabledProtocols(this.serverSocket.getSupportedProtocols());
+            this.serverSocket.setEnabledCipherSuites(this.serverSocket.getEnabledCipherSuites());
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Could not open datagram serverSocket");

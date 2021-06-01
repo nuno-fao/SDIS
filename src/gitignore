@@ -1,0 +1,11 @@
+.idea/
+.gradle/
+.project
+build
+bin
+.classpath
+org.eclipse.*
+build/
+[0-9]*/
+test.deb
+test1.deb
