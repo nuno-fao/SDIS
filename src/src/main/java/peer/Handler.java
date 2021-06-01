@@ -125,27 +125,39 @@ class PutFileHandler {
         }
     }
 
-    private void PropagateSend(byte[] data, int replicationDegree) throws IOException {
-        Node successor = this.chord.getSuccessor();
-        TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);
-
-        SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
-        s.setNeedClientAuth(true);
-
-        byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree, this.messageId);
-        messageWriter.write(contents);
-
-        s.accept().getOutputStream().write(data);
+    private SSLServerSocket sendRequest(boolean shallWrite, int repDegree) throws IOException {
+        if (!shallWrite) {
+            SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+            s.setNeedClientAuth(true);
+            Node successor = this.chord.getSuccessor();
+            TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);
+            byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), repDegree, this.messageId);
+            messageWriter.write(contents);
+            return s;
+        } else if (this.repDegree > 1) {
+            SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
+            s.setNeedClientAuth(true);
+            Node successor = this.chord.getSuccessor();
+            TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);
+            byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), repDegree - 1, this.messageId);
+            messageWriter.write(contents);
+            return s;
+        } else {
+            return null;
+        }
     }
 
     private File Receive() throws IOException {
         if (this.repDegree > 0) {
-            TCPReader reader = new TCPReader(this.remote.address, this.remote.port);
+            TCPReader reader = null;
+            try {
+                reader = new TCPReader(this.remote.address, this.remote.port);
+            } catch (IOException interruptedException) {
+            }
 
             InputStream in;
             int bufferSize = 0;
             long fileSize = 0;
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
             boolean shallWrite = !this.localFiles.containsKey(this.fileId) && !this.localCopies.containsKey(this.fileId);
 
             if (!shallWrite) {
@@ -161,35 +173,67 @@ class PutFileHandler {
             try {
                 bufferSize = reader.getSocket().getReceiveBufferSize();
                 in = reader.getSocket().getInputStream();
+
+                try {
+                    reader.getSocket().startHandshake();
+                } catch (Exception e) {
+                }
+
                 DataInputStream clientData = new DataInputStream(in);
                 AsynchronousFileChannel output = null;
 
                 long size = clientData.readLong();
-                shallWrite &= (this.maxSize.get() == -1 || this.maxSize.get() > this.currentSize.get() + size);
+                shallWrite = shallWrite && (this.maxSize.get() == -1 || this.maxSize.get() > this.currentSize.get() + size);
+
+                SSLServerSocket server = sendRequest(shallWrite, this.repDegree);
+
+                SSLSocket sentR = null;
+
+                if (server != null) {
+                    sentR = (SSLSocket) server.accept();
+                }
+
+                DataOutputStream dos = null;
+                byte[] mybytearray = new byte[30000];
+                OutputStream os;
+                if (sentR != null) {
+                    try {
+                        os = sentR.getOutputStream();
+                        dos = new DataOutputStream(os);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 byte[] buffer = new byte[bufferSize];
                 int read;
-                out.write(longToBytes(size));
+                if (dos != null) {
+                    dos.write(longToBytes(size));
+                }
 
                 while ((read = clientData.read(buffer)) != -1) {
                     fileSize += read;
                     if (shallWrite) {
                         Peer.write(this.peerId + "/stored/" + this.fileId, ByteBuffer.wrap(buffer.clone(), 0, read), fileSize - read, false, read);
                     }
-                    out.write(buffer, 0, read);
+                    if (dos != null) {
+                        dos.write(buffer, 0, read);
+                    }
                 }
 
+                if (dos != null) {
+                    dos.close();
+                }
             } catch (IOException e) {
-                e.printStackTrace();
+                return null;
             }
 
             file.setFileSize(fileSize);
             if (!shallWrite) {
-                this.PropagateSend(out.toByteArray(), this.repDegree);
                 return this.localFiles.get(this.fileId);
             } else if (this.repDegree > 1) {
                 System.out.println("Saving file " + this.fileId);
                 this.localCopies.put(file.getFileId(), file);
-                this.PropagateSend(out.toByteArray(), this.repDegree - 1);
                 this.currentSize.getAndAdd(fileSize);
             } else {
                 System.out.println("Saving file " + this.fileId);

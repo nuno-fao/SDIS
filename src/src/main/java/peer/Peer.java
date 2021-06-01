@@ -117,7 +117,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                         try {
                             sendFile(this.peerId + "/stored/" + file.getFileId(), 1, new BigInteger(file.getFileId()));
                         } catch (Exception ignored) {
-                            
+
                         }
                     }));
                 }
@@ -136,21 +136,18 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             }
         }));
 
-        this.dispatcher = new
-
-                UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.notStoredFiles);
+        this.dispatcher = new UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.notStoredFiles);
 
     }
 
     public static void main(String args[]) throws IOException {
-        String address = args[0];
-        int port = Integer.parseInt(args[1]);
-        int id = 0;
-
         System.setProperty("javax.net.ssl.keyStore", "keys/server.keys");
         System.setProperty("javax.net.ssl.keyStorePassword", "123456");
         System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "123456");
+        String address = args[0];
+        int port = Integer.parseInt(args[1]);
+        int id = 0;
 
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
@@ -264,9 +261,9 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             while ((read = dis.read(mybytearray)) != -1) {
                 dos.write(mybytearray, 0, read);
             }
+            dos.close();
 
         } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 

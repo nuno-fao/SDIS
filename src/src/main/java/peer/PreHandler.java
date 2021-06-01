@@ -56,9 +56,6 @@ public class PreHandler implements Runnable {
             return;
         }
         this.processMessage();
-        synchronized (UnicastDispatcher.getPool()) {
-            UnicastDispatcher.getPool().notifyAll();
-        }
     }
 
 
