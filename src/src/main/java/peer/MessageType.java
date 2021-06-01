@@ -1,84 +1,54 @@
 package peer;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Enum with a message type for every kind of message, each enum element knows how to process itself
  */
 public enum MessageType {
-    PUTCHUNK {
+    PUTFILE {
         @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
+        public int process(Header h, String[] argsList) throws ParseError {
+            this.processSender(h, argsList[1]);
+            this.proccessInitiator(h, argsList[2]);
             this.processFileID(h, argsList[3]);
-            this.processChunkNo(h, argsList[4]);
-            this.processReplicationDeg(h, argsList[5]);
+            this.processReplicationDeg(h, argsList[4]);
+            this.processAddress(h, argsList[5]);
+            this.processPort(h, argsList[6]);
+            this.processMessageId(h, argsList[7]);
+            return 8;
+        }
+    },
+    GETFILE {
+        @Override
+        public int process(Header h, String[] argsList) throws ParseError {
+            this.processSender(h, argsList[1]);
+            this.processFileID(h, argsList[2]);
+            this.processAddress(h, argsList[3]);
+            this.processPort(h, argsList[4]);
+            this.processMessageId(h, argsList[5]);
             return 6;
-        }
-    },
-    STORED {
-        @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
-            this.processFileID(h, argsList[3]);
-            this.processChunkNo(h, argsList[4]);
-            return 5;
-        }
-    },
-    GETCHUNK {
-        @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
-            this.processFileID(h, argsList[3]);
-            this.processChunkNo(h, argsList[4]);
-            return 5;
         }
     },
     DELETE {
         @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
-            this.processFileID(h, argsList[3]);
-            return 4;
-        }
-    },
-    REMOVED {
-        @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
-            this.processFileID(h, argsList[3]);
-            this.processChunkNo(h, argsList[4]);
+        public int process(Header h, String[] argsList) throws ParseError {
+            this.processSender(h, argsList[1]);
+            this.processFileID(h, argsList[2]);
+            this.processReplicationDeg(h, argsList[3]);
+            this.processMessageId(h, argsList[4]);
             return 5;
         }
     },
-    CHUNK {
+    PUTERROR {
         @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
-            this.processFileID(h, argsList[3]);
-            this.processChunkNo(h, argsList[4]);
-            if (argsList[0].equals("1.1")) {
-                this.processAddress(h, argsList[5]);
-                this.processPort(h, argsList[6]);
-                return 7;
-            }
-            return 5;
-        }
-    },
-    PURGED {
-        @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
-            this.processFileID(h, argsList[3]);
+        public int process(Header h, String[] argsList) throws ParseError {
+            this.proccessInitiator(h, argsList[1]);
+            this.processFileID(h, argsList[2]);
+            this.processReplicationDeg(h, argsList[3]);
             return 4;
-        }
-    },
-    AWAKE {
-        @Override
-        public int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError {
-            this.processSenderID(h, argsList[2]);
-            return 3;
         }
     };
 
@@ -89,194 +59,69 @@ public enum MessageType {
      */
     static MessageType parseMessageType(String messageType) throws ParseError {
         switch (messageType) {
-            case "PUTCHUNK" -> {
-                return MessageType.PUTCHUNK;
+            case "PUTFILE" -> {
+                return MessageType.PUTFILE;
             }
-            case "STORED" -> {
-                return MessageType.STORED;
-            }
-            case "GETCHUNK" -> {
-                return MessageType.GETCHUNK;
-            }
-            case "CHUNK" -> {
-                return MessageType.CHUNK;
-            }
-            case "REMOVED" -> {
-                return MessageType.REMOVED;
+            case "GETFILE" -> {
+                return MessageType.GETFILE;
             }
             case "DELETE" -> {
                 return MessageType.DELETE;
             }
-            case "AWAKE" -> {
-                return MessageType.AWAKE;
-            }
-            case "PURGED" -> {
-                return MessageType.PURGED;
+            case "PUTERROR" -> {
+                return MessageType.PUTERROR;
             }
             default -> throw new ParseError();
         }
     }
 
     /**
-     * @param version
-     * @param senderId
      * @param fileId
-     * @param chunkNo
      * @param replicationDegree
-     * @param body
-     * @return string with a putchunk message
-     */
-    public static byte[] createPutchunk(String version, int senderId, String fileId, int chunkNo, int replicationDegree, byte[] body) {
-        byte a[] = (version + " PUTCHUNK " + senderId + " " + fileId + " " + chunkNo + " " + replicationDegree + " \r\n\r\n").getBytes();
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(body.length + a.length);
-        try {
-            outputStream.write(a);
-            outputStream.write(body);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return outputStream.toByteArray();
-    }
-
-    /**
-     * @param version
-     * @param senderId
-     * @param fileId
-     * @param chunkNo
-     * @return string with a getchunk message
-     */
-    public static byte[] createGetchunk(String version, int senderId, String fileId, int chunkNo) {
-        byte a[] = (version + " GETCHUNK " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(a.length);
-        try {
-            outputStream.write(a);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return outputStream.toByteArray();
-    }
-
-    /**
-     * @param version
-     * @param senderId
-     * @param fileId
-     * @param chunkNo
      * @param address
      * @param port
-     * @return string with a chunk message (version 1.1)
+     * @return string with a putchunk message
      */
-    public static byte[] createChunk_1_1(String version, int senderId, String fileId, int chunkNo, String address, int port) {
-        byte a[] = (version + " CHUNK " + senderId + " " + fileId + " " + chunkNo + " " + address + " " + port + " \r\n\r\n").getBytes();
-        return a;
+    public static byte[] createPutFile(int senderID, int initiator, String fileId, String address, String port, int replicationDegree, String messageId) {
+        return ("PUTFILE" + " " + senderID + " " + initiator + " " + fileId + " " + replicationDegree + " " + address + " " + port + " " + messageId + " \r\n\r\n").getBytes();
     }
 
     /**
-     * @param version
-     * @param senderId
-     * @return string with a awake message
-     */
-    public static byte[] createAwake(String version, int senderId) {
-        byte a[] = (version + " AWAKE " + senderId + " \r\n\r\n").getBytes();
-        return a;
-    }
-
-    /**
-     * @param version
-     * @param senderId
      * @param fileId
-     * @return string with a purged message
+     * @param address
+     * @param port
+     * @return string with a getchunk message
      */
-    public static byte[] createPurged(String version, int senderId, String fileId) {
-        byte a[] = (version + " PURGED " + senderId + " " + fileId + " \r\n\r\n").getBytes();
-        return a;
+    public static byte[] createGetFile(int senderID, String fileId, String address, String port, String messageId) {
+        return ("GETFILE" + " " + senderID + " " + fileId + " " + address + " " + port + " " + messageId + " \r\n\r\n").getBytes();
     }
 
     /**
-     * @param version
-     * @param senderId
-     * @param fileId
-     * @param chunkNo
-     * @param body
-     * @return string with a chunk message (version 1.0)
-     */
-    public static byte[] createChunk(String version, int senderId, String fileId, int chunkNo, byte[] body) {
-        byte a[] = (version + " CHUNK " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(body.length + a.length);
-        try {
-            outputStream.write(a);
-            outputStream.write(body);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return outputStream.toByteArray();
-    }
-
-    /**
-     * @param version
-     * @param senderId
-     * @param fileId
-     * @param chunkNo
-     * @return string with a stored message
-     */
-    public static byte[] createStored(String version, int senderId, String fileId, int chunkNo) {
-        return (version + " STORED " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
-    }
-
-    /**
-     * @param version
-     * @param senderId
      * @param fileId
      * @return string with a delete message
      */
-    public static byte[] createDelete(String version, int senderId, String fileId) {
-        return (version + " DELETE " + senderId + " " + fileId + " \r\n\r\n").getBytes();
+    public static byte[] createDelete(int senderID, String fileId, int replicationDegree, String messageId) {
+        return ("DELETE" + " " + senderID + " " + fileId + " " + replicationDegree + " " + messageId + " \r\n\r\n").getBytes();
     }
 
     /**
-     * @param version
-     * @param senderId
-     * @param fileId
-     * @param chunkNo
-     * @return string with a removed message
+     * @param
+     * @return string with a delete message
      */
-    public static byte[] createRemoved(String version, int senderId, String fileId, int chunkNo) {
-        return (version + " REMOVED " + senderId + " " + fileId + " " + chunkNo + " \r\n\r\n").getBytes();
+    public static byte[] createPutError(int initiator, String fileId, int replicationDegree) {
+        return ("PUTERROR" + " " + initiator + " " + fileId + " " + replicationDegree + " \r\n\r\n").getBytes();
     }
 
-    public abstract int process(Header h, String[] argsList) throws ParseError, ParseError, ParseError, ParseError;
+    public abstract int process(Header h, String[] argsList) throws ParseError;
 
-    void processSenderID(Header h, String senderID) throws ParseError {
-        try {
-            h.setSenderID(Integer.parseInt(senderID));
-            if (h.getSenderID() < 0) {
-                throw new ParseError();
-            }
-        } catch (Exception e) {
-            throw new ParseError();
-        }
-    }
 
     void processFileID(Header h, String fileID) throws ParseError {
-        if (fileID.length() != 64) {
+       /* if (fileID.length() != 64) {
             throw new ParseError();
-        }
+        }*/
         h.setFileID(fileID.toLowerCase());
     }
 
-    void processChunkNo(Header h, String chunkNo) throws ParseError {
-        try {
-            if (chunkNo.length() > 6) {
-                throw new ParseError();
-            }
-            h.setChunkNo(Integer.parseInt(chunkNo));
-
-            if (h.getChunkNo() < 0) {
-                throw new ParseError();
-            }
-        } catch (Exception e) {
-            throw new ParseError();
-        }
-    }
 
     void processReplicationDeg(Header h, String replicationDeg) throws ParseError {
         try {
@@ -293,12 +138,49 @@ public enum MessageType {
         h.setAddress(address);
     }
 
+    void processSender(Header h, String sender) throws ParseError {
+        try {
+            int s = Integer.parseInt(sender);
+            h.setSender(s);
+        } catch (Exception e) {
+            throw new ParseError();
+        }
+    }
+
     void processPort(Header h, String port) throws ParseError {
         try {
             h.setPort(Integer.valueOf(port));
         } catch (Exception e) {
             throw new ParseError();
         }
+    }
+
+    void processMessageId(Header h, String messageId) throws ParseError {
+        try {
+            h.setMessageId(messageId);
+        } catch (Exception e) {
+            throw new ParseError();
+        }
+    }
+
+    void proccessInitiator(Header h, String initiatorId) throws ParseError {
+        try {
+            h.setInitiator(Integer.parseInt(initiatorId));
+        } catch (Exception e) {
+            throw new ParseError();
+        }
+    }
+
+    public static String generateMessageId() {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(("" + System.nanoTime()).getBytes());
+            BigInteger num = new BigInteger(1, digest);
+            return num.toString();
+        } catch (NoSuchAlgorithmException e) {
+            System.out.println("Invalid algorithm");
+        }
+        return "";
     }
 
 }

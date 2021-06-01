@@ -1,18 +1,36 @@
 package peer;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Implements Header interface, used to Process the header messages
  */
 public class HeaderConcrete implements Header {
-    private String version, fileID, address;
-    private Integer senderID, chunkNo, replicationDeg, port;
+    private String fileID, address, messageId;
+    private Integer replicationDeg, port, sender, initiator;
+
+
 
     private MessageType messageType;
 
     private HeaderConcrete() {
+    }
+
+    @Override
+    public int getSender() {
+        return sender;
+    }
+
+    public void setSender(int sender) {
+        this.sender = sender;
+    }
+
+    @Override
+    public Integer getInitiator() {
+        return this.initiator;
+    }
+
+    @Override
+    public void setInitiator(Integer initiator) {
+        this.initiator=initiator;
     }
 
     /**
@@ -32,44 +50,17 @@ public class HeaderConcrete implements Header {
      * @param headerMessage received message
      * @return loist of headers on the received message
      */
-    static List<Header> getHeaders(String headerMessage) {
+    static Header getHeaders(String headerMessage) {
         String[] argsList = headerMessage.stripLeading().replaceAll(" +", " ").split(" ");
-        List<Header> outList = new ArrayList<>();
-        Header localHeader;
-        int i = 0;
-        while (true) {
-            try {
+        Header localHeader = new HeaderConcrete();
+        try {
+            localHeader.setMessageType(MessageType.parseMessageType(argsList[0]));
+            localHeader.getMessageType().process(localHeader, argsList);
 
-                if (argsList.length == 0) {
-                    throw new ParseError();
-                }
-                localHeader = new HeaderConcrete();
-                if (argsList.length < 2) {
-                    throw new ParseError();
-                }
-                localHeader.setVersion(argsList[0]);
-                localHeader.setMessageType(MessageType.parseMessageType(argsList[1]));
-                int lIndex = localHeader.getMessageType().process(localHeader, argsList);
-
-                //se chegou ao fim
-                if (argsList[lIndex].matches(" *(\r\n){1,2}[\\s\\S]*")) {
-                    if (argsList[lIndex].matches(" *\r\n\r\n[\\s\\S]*")) {
-                        outList.add(localHeader);
-                        return outList;
-                    }
-                } else {
-                    throw new ParseError();
-                }
-                //limpa os elementos já processados para ler o proximo header
-                argsList = getSubArray(argsList, lIndex);
-                outList.add(localHeader);
-            } catch (Exception | ParseError e) {
-                return new ArrayList<>();
-            }
-            i++;
-            if(i>200)
-                return outList;
+        } catch (ParseError parseError) {
+            parseError.printStackTrace();
         }
+        return localHeader;
     }
 
     @Override
@@ -83,14 +74,15 @@ public class HeaderConcrete implements Header {
     }
 
     @Override
-    public String getVersion() {
-        return this.version;
+    public void setMessageId(String messageId) {
+        this.messageId=messageId;
     }
 
     @Override
-    public void setVersion(String version) {
-        this.version = version;
+    public String getMessageId() {
+        return this.messageId;
     }
+
 
     @Override
     public String getFileID() {
@@ -102,25 +94,6 @@ public class HeaderConcrete implements Header {
         this.fileID = fileID;
     }
 
-    @Override
-    public Integer getSenderID() {
-        return this.senderID;
-    }
-
-    @Override
-    public void setSenderID(Integer senderID) {
-        this.senderID = senderID;
-    }
-
-    @Override
-    public Integer getChunkNo() {
-        return this.chunkNo;
-    }
-
-    @Override
-    public void setChunkNo(Integer chunkNo) {
-        this.chunkNo = chunkNo;
-    }
 
     @Override
     public Integer getReplicationDeg() {
@@ -151,6 +124,7 @@ public class HeaderConcrete implements Header {
     public void setAddress(String address) {
         this.address = address;
     }
+
 
 }
 

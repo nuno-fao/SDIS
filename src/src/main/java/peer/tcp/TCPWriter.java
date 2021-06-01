@@ -1,10 +1,14 @@
-package peer;
+package peer.tcp;
 
+
+import peer.Address;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import java.io.DataOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 
 public class TCPWriter {
     private SSLSocket socket;
@@ -34,7 +38,6 @@ public class TCPWriter {
         try {
             SSLSocket socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address.address, address.port);
         } catch (IOException e) {
-            //e.printStackTrace();
             return false;
         }
         return true;
@@ -42,25 +45,32 @@ public class TCPWriter {
 
     public void write(byte[] message) {
         try {
-            DataOutputStream out = new DataOutputStream(this.socket.getOutputStream());
-            out.write(message);
+            PrintWriter out; // output stream
+            BufferedReader in; // input stream
+            out = new PrintWriter(this.socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+
+            out.println(new String(message));
+
+            try {
+                in.readLine();
+            } catch (IOException e) {
+            }
+
+            this.socket.shutdownOutput();
+            while (in.readLine() != null) ;
             out.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            in.close();
+
+            this.socket.close();
+        } catch (Exception e) {
         }
     }
 
-    public void write(byte[] message, boolean shouldThrow) throws IOException{
-        DataOutputStream out = new DataOutputStream(this.socket.getOutputStream());
-        out.write(message);
-        out.close();
+    public void write(byte[] message, boolean shouldThrow) throws IOException {
+        this.write(message);
     }
 
     public void close() {
-        try {
-            this.socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 }

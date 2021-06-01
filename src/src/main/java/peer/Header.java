@@ -1,25 +1,18 @@
 package peer;
 
 public interface Header {
+
     MessageType getMessageType();
 
     void setMessageType(MessageType messageType);
 
-    String getVersion();
+    void setMessageId(String messageId);
 
-    void setVersion(String version);
+    String getMessageId();
 
     String getFileID();
 
     void setFileID(String fileID);
-
-    Integer getSenderID();
-
-    void setSenderID(Integer senderID);
-
-    Integer getChunkNo();
-
-    void setChunkNo(Integer chunkNo);
 
     Integer getReplicationDeg();
 
@@ -32,5 +25,13 @@ public interface Header {
     String getAddress();
 
     void setAddress(String address);
+
+    int getSender();
+
+    void setSender(int sender);
+
+    Integer getInitiator();
+
+    void setInitiator(Integer initiator);
 
 }

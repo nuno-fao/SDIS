@@ -1,7 +1,6 @@
 package test;
 
 import java.rmi.Naming;
-import java.rmi.registry.LocateRegistry;
 import java.util.Arrays;
 import java.util.List;
 
@@ -42,9 +41,9 @@ public class TestApp {
                     break;
                 }
                 case "RECLAIM": {
-                    int a;
+                    long a;
                     try {
-                        a = Integer.parseInt(args[2]);
+                        a = Long.parseLong(args[2]);
                     } catch (Exception e) {
                         throw new IllegalArgumentException("4th argument is not a number!!!!");
                     }
@@ -59,8 +58,7 @@ public class TestApp {
                     throw new IllegalArgumentException("Illegal argument" + args[1]);
                 }
             }
-        }
-        catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Not enough arguments were supplied");
         }
