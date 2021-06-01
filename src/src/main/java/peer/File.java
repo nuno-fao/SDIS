@@ -29,6 +29,7 @@ public class File {
         try {
             Files.createDirectories(Path.of(serverName + "/stored"));
         } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -47,6 +48,7 @@ public class File {
         try {
             Files.createDirectories(Path.of(serverName + "/stored"));
         } catch (IOException e) {
+            e.printStackTrace();
         }
         this.fileId = fileId;
         this.fileSize = this.fileSize;

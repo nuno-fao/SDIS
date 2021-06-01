@@ -149,11 +149,6 @@ class PutFileHandler {
 
     private File Receive() throws IOException {
         if (this.repDegree > 0) {
-            TCPReader reader = null;
-            try {
-                reader = new TCPReader(this.remote.address, this.remote.port);
-            } catch (IOException interruptedException) {
-            }
 
             InputStream in;
             int bufferSize = 0;
@@ -169,15 +164,16 @@ class PutFileHandler {
                 return null;
             }
 
+            TCPReader reader = null;
+            try {
+                reader = new TCPReader(this.remote.address, this.remote.port);
+            } catch (IOException interruptedException) {
+            }
+
             File file = new File(this.fileId, String.valueOf(this.peerId), null, bufferSize, this.repDegree);
             try {
                 bufferSize = reader.getSocket().getReceiveBufferSize();
                 in = reader.getSocket().getInputStream();
-
-                try {
-                    reader.getSocket().startHandshake();
-                } catch (Exception e) {
-                }
 
                 DataInputStream clientData = new DataInputStream(in);
                 AsynchronousFileChannel output = null;
@@ -194,7 +190,6 @@ class PutFileHandler {
                 }
 
                 DataOutputStream dos = null;
-                byte[] mybytearray = new byte[30000];
                 OutputStream os;
                 if (sentR != null) {
                     try {

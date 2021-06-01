@@ -3,15 +3,11 @@ package peer;
 import peer.tcp.TCPWriter;
 
 import java.io.IOException;
-
-import java.util.concurrent.locks.ReentrantLock;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.net.ConnectException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Chord {
     public static int m = 5;
@@ -38,15 +34,15 @@ public class Chord {
             return comp <= bigger || comp > smaller;
         } else {
             if (smaller == bigger && smaller == this.n.id) return true;
-            return this.n.equals(this.successor) && this.predecessor == null;
+            return this.n.equals(this.getSuccessor()) && this.predecessor == null;
         }
     }
 
     public Node FindSuccessor(Integer id) {
         Integer processedId = id % ((int) (Math.pow(2, m)));
         if (processedId == this.n.id) return this.n;
-        if (this.isBetween(this.n.id, processedId, this.successor.id)) {
-            return this.successor;
+        if (this.isBetween(this.n.id, processedId, this.getSuccessor().id)) {
+            return this.getSuccessor();
         } else {
             Node nl = this.ClosestPrecedingNode(processedId);
             return this.remoteFindSuccessor(nl, processedId);
@@ -62,28 +58,23 @@ public class Chord {
         return this.n;
     }
 
-    public Node FindPredecessor(Node retriever) {
-        System.exit(11);
-        return null;
-    }
-
     public void Create() {
         this.predecessor = null;
-        this.successor = this.n;
-        this.fingerTable[0] = this.successor;
+        this.setSuccessor(this.n);
+        this.fingerTable[0] = this.getSuccessor();
     }
 
     public void Join(Node nl) {
         this.predecessor = null;
-        this.successor = this.remoteFindSuccessor(nl, this.n.id);
-        this.fingerTable[0] = this.successor;
+        this.setSuccessor(this.remoteFindSuccessor(nl, this.n.id));
+        this.fingerTable[0] = this.getSuccessor();
     }
 
     public void Stabilize() {
         Node x = this.getSuccessorPredecessor();
-        if (x != null && this.isBetween(this.n.id, x.id, this.successor.id)) {
-            this.successor = x;
-            this.fingerTable[0] = this.successor;
+        if (x != null && this.isBetween(this.n.id, x.id, this.getSuccessor().id)) {
+            this.setSuccessor(x);
+            this.fingerTable[0] = this.getSuccessor();
         }
         this.notifySuccThatImPred();
     }
@@ -137,7 +128,7 @@ public class Chord {
     public Node getSuccessorPredecessor() {
         this.successorPredecessor = null;
         try {
-            TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+            TCPWriter writer = new TCPWriter(this.getSuccessor().address.address, this.getSuccessor().address.port, true);
             String message = "CHORD REQ_PRED " + this.n.toString();
             byte[] messageBytes = message.getBytes();
             writer.write(messageBytes);
@@ -170,15 +161,15 @@ public class Chord {
 
     public void notifySuccThatImPred() {
         try {
-            TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+            TCPWriter writer = new TCPWriter(this.getSuccessor().address.address, this.getSuccessor().address.port, true);
             String message = "CHORD NOTIFY " + this.n.toString();
             byte[] messageBytes = message.getBytes();
             writer.write(messageBytes);
             writer.close();
         } catch (IOException e) {
             if (this.sucessorSuccessor != null) {
-                this.successor = this.sucessorSuccessor;
-                this.fingerTable[0] = this.successor;
+                this.setSuccessor(this.sucessorSuccessor);
+                this.fingerTable[0] = this.getSuccessor();
             }
         }
     }
@@ -223,7 +214,7 @@ public class Chord {
             return this.waitingForResponses[index];
         } catch (IOException e) {
             try {
-                TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+                TCPWriter writer = new TCPWriter(this.getSuccessor().address.address, this.getSuccessor().address.port, true);
                 int index;
                 synchronized (this) {
                     if (this.lastWaitingIndexUsed == 50) this.lastWaitingIndexUsed = 0;
@@ -245,9 +236,9 @@ public class Chord {
                 }
                 return this.waitingForResponses[index];
             } catch (IOException e3) {
-                this.successor = this.sucessorSuccessor;
-                this.fingerTable[0] = this.successor;
-                TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port);
+                this.setSuccessor(this.sucessorSuccessor);
+                this.fingerTable[0] = this.getSuccessor();
+                TCPWriter writer = new TCPWriter(this.getSuccessor().address.address, this.getSuccessor().address.port);
                 int index;
                 synchronized (this) {
                     if (this.lastWaitingIndexUsed == 50) this.lastWaitingIndexUsed = 0;
@@ -305,14 +296,14 @@ public class Chord {
 
     public void requestSuccessorSuccessor() {
         try {
-            TCPWriter writer = new TCPWriter(this.successor.address.address, this.successor.address.port, true);
+            TCPWriter writer = new TCPWriter(this.getSuccessor().address.address, this.getSuccessor().address.port, true);
             String message = "CHORD REQ_SUCC " + this.n.toString();
             writer.write(message.getBytes());
             writer.close();
         } catch (IOException e) {
             if (this.sucessorSuccessor != null) {
-                this.successor = this.sucessorSuccessor;
-                this.fingerTable[0] = this.successor;
+                this.setSuccessor(this.sucessorSuccessor);
+                this.fingerTable[0] = this.getSuccessor();
             }
         }
 
@@ -327,7 +318,7 @@ public class Chord {
         Node messageSender = this.parseMessage(message, "REQ_SUCC");
         if (messageSender != null) {
             TCPWriter writer = new TCPWriter(messageSender.address.address, messageSender.address.port);
-            String response = "CHORD GET_SUCC " + this.successor.toString();
+            String response = "CHORD GET_SUCC " + this.getSuccessor().toString();
             writer.write(response.getBytes());
             writer.close();
         }
@@ -371,6 +362,10 @@ public class Chord {
                 return;
         }
     }
+
+    public void setSuccessor(Node successor) {
+        this.successor = successor;
+    }
 }
 
 class Node {
@@ -382,39 +377,31 @@ class Node {
         this.id = id;
     }
 
-    public Node(String stringRepresentation)
-    {
+    public Node(String stringRepresentation) {
         int colonCount = 0;
-        for (int i = 0; i < stringRepresentation.length(); i++)
-        {
+        for (int i = 0; i < stringRepresentation.length(); i++) {
             if (stringRepresentation.charAt(i) == ':') colonCount++;
         }
 
-        if (colonCount == 2)
-        {
+        if (colonCount == 2) {
             String[] parts = stringRepresentation.split(":");
             String address = parts[0];
             int port = Integer.parseInt(parts[1]);
             Integer id = Integer.valueOf(parts[2]);
-            
+
             this.address = new Address(address, port);
-            this.id = id; 
-        }
-        else
-        {
+            this.id = id;
+        } else {
             String[] parts = stringRepresentation.split(":");
             String address = parts[0];
             int port = Integer.parseInt(parts[1]);
 
-            try
-            {
+            try {
                 MessageDigest md = MessageDigest.getInstance("SHA-1");
                 byte[] digest = md.digest((address + ":" + port).getBytes());
                 BigInteger num = new BigInteger(1, digest);
                 this.id = num.mod(BigDecimal.valueOf(Math.pow(2, Chord.m)).toBigInteger()).intValue();
-            }
-            catch (NoSuchAlgorithmException e)
-            {
+            } catch (NoSuchAlgorithmException e) {
                 System.out.println("Invalid algorithm");
             }
             this.address = new Address(address, port);

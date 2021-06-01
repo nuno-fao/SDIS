@@ -264,6 +264,8 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             dos.close();
 
         } catch (IOException e) {
+            System.out.println("error");
+            //e.printStackTrace();
         }
     }
 
