@@ -22,7 +22,6 @@ public class TCPWriter {
         try {
             this.socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(address, port);
         } catch (IOException e) {
-            e.printStackTrace();
         }
 
     }

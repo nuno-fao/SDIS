@@ -105,7 +105,41 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         }
 
         readMetadata();
-        this.dispatcher = new UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.notStoredFiles);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            ScheduledExecutorService e = Executors.newSingleThreadScheduledExecutor();
+            ExecutorService ex = Executors.newFixedThreadPool(10);
+            try {
+                if (this.localCopies.size() == 0)
+                    return;
+                for (File file : this.localCopies.values()) {
+                    ex.execute(new Thread(() -> {
+                        try {
+                            sendFile(this.peerId + "/stored/" + file.getFileId(), 1, new BigInteger(file.getFileId()));
+                        } catch (Exception ignored) {
+                            
+                        }
+                    }));
+                }
+                e.schedule(
+                        new Thread(() -> {
+                            for (File file : this.localCopies.values()) {
+                                if (!this.notStoredFiles.contains(new BigInteger(file.getFileId()))) {
+                                    file.deleteFile(this.currentSize);
+                                    this.localCopies.remove(file.getFileId());
+                                }
+                            }
+                        }), 5, TimeUnit.SECONDS
+                );
+                e.awaitTermination(6, TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
+        }));
+
+        this.dispatcher = new
+
+                UnicastDispatcher(port, id, chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.notStoredFiles);
+
     }
 
     public static void main(String args[]) throws IOException {
@@ -285,7 +319,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("Received File");
+        System.out.println("Received File " + filename);
 
         return true;
     }

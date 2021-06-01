@@ -50,7 +50,6 @@ public class Handler {
             return;
         }
 
-        System.out.println(stringMessage);
         Header headers = HeaderConcrete.getHeaders(new String(this.message));
 
         if (headers.getMessageType() != MessageType.PUTERROR) {
@@ -66,6 +65,7 @@ public class Handler {
             } else {
                 this.receivedMessages.put(headers.getMessageId(), true);
             }
+        } else {
         }
 
         switch (headers.getMessageType()) {
@@ -123,13 +123,6 @@ class PutFileHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        if (f != null) {
-            try {
-                localCopies.put(f.getFileId(), f);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     private void PropagateSend(byte[] data, int replicationDegree) throws IOException {
@@ -138,8 +131,6 @@ class PutFileHandler {
 
         SSLServerSocket s = (SSLServerSocket) SSLServerSocketFactory.getDefault().createServerSocket(0);
         s.setNeedClientAuth(true);
-
-        System.out.println("Propagating with RepDegree: " + replicationDegree);
 
         byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.local.address, Integer.toString(s.getLocalPort()), replicationDegree, this.messageId);
         messageWriter.write(contents);
@@ -157,6 +148,15 @@ class PutFileHandler {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             boolean shallWrite = !this.localFiles.containsKey(this.fileId) && !this.localCopies.containsKey(this.fileId);
 
+            if (!shallWrite) {
+                Node successor = this.chord.getSuccessor();
+                TCPWriter messageWriter = new TCPWriter(successor.address.address, successor.address.port);
+
+                byte[] contents = MessageType.createPutFile(this.peerId, this.initiator, this.fileId, this.remote.address, Integer.toString(this.remote.port), this.repDegree, this.messageId);
+                messageWriter.write(contents);
+                return null;
+            }
+
             File file = new File(this.fileId, String.valueOf(this.peerId), null, bufferSize, this.repDegree);
             try {
                 bufferSize = reader.getSocket().getReceiveBufferSize();
@@ -169,6 +169,7 @@ class PutFileHandler {
                 byte[] buffer = new byte[bufferSize];
                 int read;
                 out.write(longToBytes(size));
+
                 while ((read = clientData.read(buffer)) != -1) {
                     fileSize += read;
                     if (shallWrite) {
@@ -176,6 +177,7 @@ class PutFileHandler {
                     }
                     out.write(buffer, 0, read);
                 }
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -185,9 +187,13 @@ class PutFileHandler {
                 this.PropagateSend(out.toByteArray(), this.repDegree);
                 return this.localFiles.get(this.fileId);
             } else if (this.repDegree > 1) {
+                System.out.println("Saving file " + this.fileId);
+                this.localCopies.put(file.getFileId(), file);
                 this.PropagateSend(out.toByteArray(), this.repDegree - 1);
                 this.currentSize.getAndAdd(fileSize);
             } else {
+                System.out.println("Saving file " + this.fileId);
+                this.localCopies.put(file.getFileId(), file);
                 this.currentSize.getAndAdd(fileSize);
             }
             return file;

@@ -9,12 +9,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 
 public class UnicastDispatcher implements Runnable {
     private SSLServerSocket serverSocket;
-    private ExecutorService pool = Executors.newFixedThreadPool(10);
+    static private ExecutorService pool = Executors.newFixedThreadPool(10);
+    static public AtomicBoolean stopWrite = new AtomicBoolean(false);
     private int peerId;
     private Chord chord;
     private ConcurrentHashMap<String, File> localFiles;
@@ -23,6 +25,10 @@ public class UnicastDispatcher implements Runnable {
     private AtomicLong currentSize;
     private CopyOnWriteArraySet<BigInteger> notStoredFiles;
     private ConcurrentHashMap<String, Boolean> receivedMessages = new ConcurrentHashMap<>();
+
+    static ExecutorService getPool() {
+        return pool;
+    }
 
     public UnicastDispatcher(int port, int peerId, Chord chord, ConcurrentHashMap<String, File> localFiles, ConcurrentHashMap<String, File> localCopies, AtomicLong maxSize, AtomicLong currentSize, CopyOnWriteArraySet<BigInteger> notStoredFiles) {
         this.peerId = peerId;
@@ -52,7 +58,6 @@ public class UnicastDispatcher implements Runnable {
                 socket = (SSLSocket) this.serverSocket.accept();
                 this.pool.execute(new PreHandler(socket, this.peerId, this.chord, this.localFiles, this.localCopies, this.maxSize, this.currentSize, this.receivedMessages, this.notStoredFiles));
             } catch (Exception e) {
-                e.printStackTrace();
             }
         }
     }
