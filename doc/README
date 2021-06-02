@@ -30,4 +30,5 @@ RECLAIM <storage limit in kilobytes>
 (STATE has no arguments)
 
 Explanation of a peer's directory tree:
-When a peer runs it creates a directory whose name is the peer's ID, inside this directory can be found two subdirectories, one with stored files and another with restored files named, respectively, "stored" and "restored". These subdirectories will only be created if the peer has stored or restored any files.
+When a peer runs it creates a directory whose name is the peer's ID, inside this directory can be found two subdirectories, one with stored files and another with restored files named, respectively, "stored" and "restored".  
+These subdirectories will only be created if the peer has stored or restored any files.
