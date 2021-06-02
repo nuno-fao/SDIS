@@ -21,7 +21,7 @@ Cleanup:
 If you would like to cleanup leftover files from previous executions run the cleanup.sh script with no arguments.
 
 Setup:
-Before running the project run the setup.sh script with no arguments (this will start the rmiregistry in the background). You don't need to run the script once for each peer, you only need to run it once.
+Before running the project run the setup.sh script with no arguments (this will start the rmiregistry in the background). You don't need to run the script once for each peer, you only need to run it once. Make sure that you don't have the rmiregistry running before running the script. Even if you ran the registry separately, the script also does other actions that are necessary for the project to function properly.
 
 Running the peers:
 To run the peers run the peer.sh script in the following way (arguments between brackets are optional):
