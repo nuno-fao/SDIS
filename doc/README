@@ -1,4 +1,5 @@
-To help with compiling and running the project several scripts were created. These scripts can be found in the "scripts" directory which can be found at the root of the project tree, they're similar to the ones used in the first project.
+To help with compiling and running the project several scripts were created.  
+These scripts can be found in the "scripts" directory which can be found at the root of the project tree, they're similar to the ones used in the first project.
 
 Compilation:
 To compile the project copy the compile.sh script to the root of the project tree and run it with no arguments, this will create a new "build" directory at the root of the project tree.
