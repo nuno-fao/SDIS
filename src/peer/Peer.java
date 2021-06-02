@@ -290,7 +290,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         BufferedInputStream bis = new BufferedInputStream(fis);
         DataInputStream dis = new DataInputStream(bis);
         OutputStream os;
-        System.out.println("wer");
         try {
             os = server.getSocket().getOutputStream();
             DataOutputStream dos = new DataOutputStream(os);
@@ -304,7 +303,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         } catch (Exception e) {
             exiting = false;
         }
-        System.out.println("wer");
     }
 
     @Override
