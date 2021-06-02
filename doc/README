@@ -1,0 +1,17 @@
+To help with compiling and running the project several scripts were created. These scripts can be found in the "scripts" directory which can be found at the root of the project tree, they're similar to the ones used in the first project.
+
+Compilation:
+To compile the project copy the compile.sh script to the root of the project tree and run it with no arguments, this will create a new "build" directory at the root of the project tree.
+
+Cleanup:
+If you would like to cleanup leftover files from previous executions copy the cleanup.sh script to the "build" directory and run it with no arguments.
+
+Setup:
+Before running the project copy the setup.sh script to the root of the project tree and run it with no arguments (this will start the rmiregistry in the background).
+
+Running the peers:
+To run the peers copy the peer.sh script to the build directory. This script must be run in the following way (arguments between brackets are optional):
+<path to script> <addr> <port> [<addr>:<port>] [<keystoreFile> <keystorePass> <truststoreFile> <keystorePass>]
+The 2 mandatory arguments are the address (for example, "localhost" or "127.0.0.1") and port (for example, "6666") which will be used to communicate with that peer.
+The first optional argument contains the address and port of a peer that is already running (already part of the Chord circle), if this argument isn't provided then a new Chord circle will be created. Note that the address and port are separated by ":", not a space, this is a single argument.
+The second block contains several optional arguments which should be the pa
