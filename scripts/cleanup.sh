@@ -1,2 +1,2 @@
 #! /bin/bash
-rm -rf [0-9]*
+rm -rf ../build/[0-9]*
