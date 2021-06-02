@@ -7,6 +7,8 @@ public class ChordHelper implements Runnable {
         this.chord = chord;
     }
 
+    static int s = 0;
+
     @Override
     public void run() {
         this.chord.Stabilize();

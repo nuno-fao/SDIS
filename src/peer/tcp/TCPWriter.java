@@ -78,4 +78,13 @@ public class TCPWriter {
 
     public void close() {
     }
+
+    public void burn(){
+        try{
+        this.socket.close();
+        }
+        catch(Exception e){
+            
+        }
+    }
 }

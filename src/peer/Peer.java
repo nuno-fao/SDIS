@@ -41,14 +41,23 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     private String address;
     private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private CopyOnWriteArraySet<BigInteger> notStoredFiles = new CopyOnWriteArraySet<>();
+    private boolean exiting = false;
 
     public static void write(String path, ByteBuffer byteBuffer, long offset, boolean truncate, int size) throws IOException {
         AsynchronousFileChannel output;
+        try{
+            String p = path.substring(0, path.lastIndexOf(java.io.File.separator));
+            Files.createDirectories(Path.of(p));
+        }
+        catch(Exception e){
+            
+        }
         if (truncate) {
             output = AsynchronousFileChannel.open(Path.of(path), WRITE, TRUNCATE_EXISTING, CREATE);
         } else {
             output = AsynchronousFileChannel.open(Path.of(path), WRITE, CREATE);
         }
+
         byteBuffer = byteBuffer.limit(size);
         output.write(byteBuffer, offset, output, new CompletionHandler<Integer, AsynchronousFileChannel>() {
             @Override
@@ -73,6 +82,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
     public Peer(String address, int port, int id, Chord chord) throws RemoteException {
         super(0);
+
         this.localFiles = new ConcurrentHashMap<>();
         this.localCopies = new ConcurrentHashMap<>();
         this.maxSize = new AtomicLong(-1);
@@ -89,13 +99,6 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             e.printStackTrace();
         }
 
-
-        //fixme
-        try {
-            LocateRegistry.createRegistry(1099);
-        } catch (Exception e) {
-        }
-
         try {
             Naming.rebind(this.peerId + "", this);
         } catch (RemoteException | MalformedURLException e) {
@@ -107,8 +110,11 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         readMetadata();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Exiting gracefully... please wait");
+            exiting = true;
             ScheduledExecutorService e = Executors.newSingleThreadScheduledExecutor();
             ExecutorService ex = Executors.newFixedThreadPool(10);
+            Boolean t = true;
             try {
                 if (this.localCopies.size() == 0)
                     return;
@@ -117,21 +123,31 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                         try {
                             sendFile(this.peerId + "/stored/" + file.getFileId(), 1, new BigInteger(file.getFileId()));
                         } catch (Exception ignored) {
-
                         }
                     }));
                 }
                 e.schedule(
                         new Thread(() -> {
                             for (File file : this.localCopies.values()) {
+                                if(exiting == false){
+                                    synchronized (t){
+                                        t.notifyAll();
+                                    }
+                                    return;
+                                }
                                 if (!this.notStoredFiles.contains(new BigInteger(file.getFileId()))) {
                                     file.deleteFile(this.currentSize);
                                     this.localCopies.remove(file.getFileId());
                                 }
                             }
-                        }), 5, TimeUnit.SECONDS
+                            synchronized (t){
+                                t.notifyAll();
+                            }
+                        }), 2, TimeUnit.SECONDS
                 );
-                e.awaitTermination(6, TimeUnit.SECONDS);
+                synchronized (t){
+                    t.wait();
+                }
             } catch (Exception ignored) {
             }
         }));
@@ -141,10 +157,30 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     }
 
     public static void main(String args[]) throws IOException {
-        System.setProperty("javax.net.ssl.keyStore", "keys/server.keys");
-        System.setProperty("javax.net.ssl.keyStorePassword", "123456");
-        System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
-        System.setProperty("javax.net.ssl.trustStorePassword", "123456");
+        if(args.length == 2 || args.length == 3){
+            System.out.println("using default Keys");
+            System.setProperty("javax.net.ssl.keyStore", "keys/example.keys");
+            System.setProperty("javax.net.ssl.keyStorePassword", "123456");
+            System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
+            System.setProperty("javax.net.ssl.trustStorePassword", "123456");
+        }
+        else if(args.length != 6 && args.length != 7){
+            System.out.println("Incorrect number of arguments");
+        }
+        else if(args.length == 6){
+            System.out.println("using defined Keys");
+            System.setProperty("javax.net.ssl.keyStore", args[2]);
+            System.setProperty("javax.net.ssl.keyStorePassword", args[3]);
+            System.setProperty("javax.net.ssl.trustStore", args[4]);
+            System.setProperty("javax.net.ssl.trustStorePassword", args[5]);
+        }
+        else if(args.length == 7){
+            System.out.println("using defined Keys");
+            System.setProperty("javax.net.ssl.keyStore", args[3]);
+            System.setProperty("javax.net.ssl.keyStorePassword", args[4]);
+            System.setProperty("javax.net.ssl.trustStore", args[5]);
+            System.setProperty("javax.net.ssl.trustStorePassword", args[6]);
+        }
         String address = args[0];
         int port = Integer.parseInt(args[1]);
         int id = 0;
@@ -190,7 +226,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     }
 
     public void startChord() {
-        this.executor.scheduleAtFixedRate(this.chordHelper, 0, 1, TimeUnit.SECONDS);
+        this.executor.scheduleAtFixedRate(this.chordHelper, 1, 1, TimeUnit.SECONDS);
     }
 
     @Override
@@ -237,7 +273,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         TCPServer server = new TCPServer();
         Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
 
-        System.out.println("ID:" + fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
+        System.out.println("Sending file :" + fileId);
         if (d.id == this.chord.n.id) {
             d = this.chord.getSuccessor();
         }
@@ -263,9 +299,8 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             }
             dos.close();
 
-        } catch (IOException e) {
-            System.out.println("error");
-            //e.printStackTrace();
+        } catch (Exception e) {
+            exiting = false;
         }
     }
 

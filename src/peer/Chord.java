@@ -65,6 +65,13 @@ public class Chord {
     }
 
     public void Join(Node nl) {
+        try{
+            new TCPWriter(nl.address.address, nl.address.port, true).burn();
+        }
+        catch(Exception e){
+            System.out.println("Entry point not found!");
+            System.exit(2);
+        }
         this.predecessor = null;
         this.setSuccessor(this.remoteFindSuccessor(nl, this.n.id));
         this.fingerTable[0] = this.getSuccessor();
@@ -91,6 +98,9 @@ public class Chord {
             this.next = 0;
         }
         this.fingerTable[this.next] = this.FindSuccessor(this.n.id + (int) Math.pow(2, this.next));
+        if(this.next == 0){
+            this.successor = this.fingerTable[0];
+        }
     }
 
     public void CheckPredecessor() {
@@ -107,6 +117,10 @@ public class Chord {
 
     public Node getSuccessor() {
         return this.successor;
+    }
+
+    public Node getPredecessor() {
+        return this.predecessor;
     }
 
     public void getPredecessor(byte[] message) {
@@ -134,10 +148,11 @@ public class Chord {
             writer.write(messageBytes);
             writer.close();
 
-            while (this.successorPredecessor == null) {
+            long i = System.currentTimeMillis();
+            while (this.successorPredecessor == null && System.currentTimeMillis()-i < 2000) {
                 try {
                     synchronized (this.predecessorLock) {
-                        this.predecessorLock.wait();
+                        this.predecessorLock.wait(2000);
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -202,10 +217,12 @@ public class Chord {
             writer.write(messageBytes, true);
             writer.close();
             this.waitingForResponses[index] = null;
-            while (this.waitingForResponses[index] == null) {
+
+            long i = System.currentTimeMillis();
+            while (this.waitingForResponses[index] == null && System.currentTimeMillis()-i < 2000) {
                 synchronized (this.waitingLock) {
                     try {
-                        this.waitingLock.wait();
+                        this.waitingLock.wait(2000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -225,10 +242,11 @@ public class Chord {
                 writer.write(messageBytes, true);
                 writer.close();
                 this.waitingForResponses[index] = null;
-                while (this.waitingForResponses[index] == null) {
+                long i = System.currentTimeMillis();
+                while (this.waitingForResponses[index] == null && System.currentTimeMillis()-i < 2000) {
                     synchronized (this.waitingLock) {
                         try {
-                            this.waitingLock.wait();
+                            this.waitingLock.wait(2000);
                         } catch (InterruptedException interruptedException) {
                             interruptedException.printStackTrace();
                         }
@@ -249,10 +267,11 @@ public class Chord {
                 writer.write(messageBytes);
                 writer.close();
                 this.waitingForResponses[index] = null;
-                while (this.waitingForResponses[index] == null) {
+                long i = System.currentTimeMillis();
+                while (this.waitingForResponses[index] == null  && System.currentTimeMillis()-i < 2000) {
                     synchronized (this.waitingLock) {
                         try {
-                            this.waitingLock.wait();
+                            this.waitingLock.wait(2000);
                         } catch (InterruptedException interruptedException) {
                             interruptedException.printStackTrace();
                         }
