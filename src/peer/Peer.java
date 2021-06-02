@@ -282,13 +282,15 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
         t.write(MessageType.createPutFile(this.peerId, this.peerId, fileId.toString(), this.address, String.valueOf(server.getPort()), replicationDegree, MessageType.generateMessageId()));
 
-        server.start();
+        if(!server.start())
+            return;
         final java.io.File myFile = new java.io.File(path); //sdcard/DCIM.JPG
         byte[] mybytearray = new byte[30000];
         FileInputStream fis = new FileInputStream(myFile);
         BufferedInputStream bis = new BufferedInputStream(fis);
         DataInputStream dis = new DataInputStream(bis);
         OutputStream os;
+        System.out.println("wer");
         try {
             os = server.getSocket().getOutputStream();
             DataOutputStream dos = new DataOutputStream(os);
@@ -302,6 +304,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         } catch (Exception e) {
             exiting = false;
         }
+        System.out.println("wer");
     }
 
     @Override
@@ -328,8 +331,9 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         TCPWriter t = new TCPWriter(destination.address, destination.port);
         t.write(MessageType.createGetFile(this.peerId, fileId.toString(), this.address, String.valueOf(reader.getPort()), MessageType.generateMessageId()));
 
-        reader.start();
-
+        if(!reader.start()){
+            return false;
+        }
 
         InputStream in;
         int bufferSize = 0;
@@ -390,6 +394,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
     @Override
     public void Reclaim(long newMaxSize) throws IOException {
+        newMaxSize *= 1000;
         this.maxSize.set(newMaxSize);
         saveMetadata(this.maxSize.get());
 
@@ -424,7 +429,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                     }
                 }
             }
-            System.out.println("Current Size: " + (long) (this.currentSize.get() / 1024) + " KiB");
+            System.out.println("Current Size: " + (long) (this.currentSize.get() / 1000) + " KB");
         } catch (Exception ignored) {
 
         }
@@ -483,7 +488,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                             Peer.this.maxSize.set(Integer.parseInt(new String(res)));
                             saveMetadata(Peer.this.maxSize.get());
                             if (Peer.this.maxSize.get() > -1) {
-                                System.out.println("Max space:" + Peer.this.maxSize.get());
+                                System.out.println("Max space: " + Peer.this.maxSize.get()/1000 + " KB");
                             } else {
                                 System.out.println("Max space not defined");
                             }
@@ -496,7 +501,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         } catch (Exception e) {
             saveMetadata(this.maxSize.get());
             if (this.maxSize.get() > -1) {
-                System.out.println("Max space:" + this.maxSize.get());
+                System.out.println("Max space:" + this.maxSize.get()/1000 + " KB");
             } else {
                 System.out.println("Max space not defined");
             }
@@ -545,8 +550,8 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
     public String State() throws RemoteException {
         String out = "";
         out += ("Peer current storage information\n");
-        out += "Max Size: " + this.maxSize.get() + "\n";
-        out += "Current Size: " + this.currentSize.get() / 1024 + " KiB\n";
+        out += "Max Size:     " + this.maxSize.get()/1000 + " kb\n";
+        out += "Current Size: " + this.currentSize.get() / 1000 + " KB\n";
 
         if (this.localFiles.size() > 0) {
             out += "\nMy Files: " + "\n";
@@ -554,14 +559,14 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
                 out += "\n    Name:               " + f.getFileName() + "\n";
                 out += "    FileID:             " + f.getFileId() + "\n";
                 out += "    Desired Rep Degree: " + f.getReplicationDegree() + "\n";
-                out += "    Size:               " + f.getFileSize() / 1024 + " KiB\n";
+                out += "    Size:               " + f.getFileSize() / 1000 + " KB\n";
             }
         }
         if (this.localCopies.size() > 0) {
             out += "\nStored Files: " + "\n";
             for (File f : this.localCopies.values()) {
                 out += "\n    FileID:             " + f.getFileId() + "\n";
-                out += "    Size:               " + f.getFileSize() / 1024 + " KiB\n";
+                out += "    Size:               " + f.getFileSize() / 1000 + " KB\n";
             }
         }
         return out;

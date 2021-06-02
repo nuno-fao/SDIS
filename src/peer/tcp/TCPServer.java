@@ -26,12 +26,13 @@ public class TCPServer {
         return this.socket;
     }
 
-    public void start() {
+    public boolean start() {
         try {
+            this.serverSocket.setSoTimeout(3000);
             this.socket = (SSLSocket) this.serverSocket.accept();
-
+            return this.socket != null;
         } catch (Exception e) {
-            return;
+            return false;
         }
     }
 
