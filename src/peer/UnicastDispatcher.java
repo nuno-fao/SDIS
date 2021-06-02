@@ -38,8 +38,8 @@ public class UnicastDispatcher implements Runnable {
             this.serverSocket.setEnabledProtocols(this.serverSocket.getSupportedProtocols());
             this.serverSocket.setEnabledCipherSuites(this.serverSocket.getEnabledCipherSuites());
         } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("Could not open datagram serverSocket");
+            //e.printStackTrace();
+            System.out.println("Could not open serverSocket, please check the passphrases");
             System.exit(3);
         }
     }

@@ -110,6 +110,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         readMetadata();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Exiting gracefully... please wait");
             exiting = true;
             ScheduledExecutorService e = Executors.newSingleThreadScheduledExecutor();
             ExecutorService ex = Executors.newFixedThreadPool(10);
@@ -157,6 +158,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
 
     public static void main(String args[]) throws IOException {
         if(args.length == 2 || args.length == 3){
+            System.out.println("using default Keys");
             System.setProperty("javax.net.ssl.keyStore", "keys/example.keys");
             System.setProperty("javax.net.ssl.keyStorePassword", "123456");
             System.setProperty("javax.net.ssl.trustStore", "keys/truststore");
@@ -166,12 +168,14 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             System.out.println("Incorrect number of arguments");
         }
         else if(args.length == 6){
+            System.out.println("using defined Keys");
             System.setProperty("javax.net.ssl.keyStore", args[2]);
             System.setProperty("javax.net.ssl.keyStorePassword", args[3]);
             System.setProperty("javax.net.ssl.trustStore", args[4]);
             System.setProperty("javax.net.ssl.trustStorePassword", args[5]);
         }
         else if(args.length == 7){
+            System.out.println("using defined Keys");
             System.setProperty("javax.net.ssl.keyStore", args[3]);
             System.setProperty("javax.net.ssl.keyStorePassword", args[4]);
             System.setProperty("javax.net.ssl.trustStore", args[5]);
@@ -269,7 +273,7 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
         TCPServer server = new TCPServer();
         Node d = this.chord.FindSuccessor(fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
 
-        System.out.println("ID:" + fileId.remainder(BigInteger.valueOf((long) Math.pow(2, this.chord.m))).intValue());
+        System.out.println("Sending file :" + fileId);
         if (d.id == this.chord.n.id) {
             d = this.chord.getSuccessor();
         }
