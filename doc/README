@@ -1,4 +1,5 @@
-To help with compiling and running the project several scripts were created. These scripts can be found in the "scripts" directory which can be found at the root of the project tree, they're similar to the ones used in the first project.
+To help with compiling and running the project several scripts were created.  
+These scripts can be found in the "scripts" directory which can be found at the root of the project tree, they're similar to the ones used in the first project.
 
 Compilation:
 To compile the project copy the compile.sh script to the root of the project tree and run it with no arguments, this will create a new "build" directory at the root of the project tree.
@@ -29,4 +30,5 @@ RECLAIM <storage limit in kilobytes>
 (STATE has no arguments)
 
 Explanation of a peer's directory tree:
-When a peer runs it creates a directory whose name is the peer's ID, inside this directory can be found two subdirectories, one with stored files and another with restored files named, respectively, "stored" and "restored". These subdirectories will only be created if the peer has stored or restored any files.
+When a peer runs it creates a directory whose name is the peer's ID, inside this directory can be found two subdirectories, one with stored files and another with restored files named, respectively, "stored" and "restored".  
+These subdirectories will only be created if the peer has stored or restored any files.
