@@ -350,7 +350,8 @@ public class Peer extends UnicastRemoteObject implements RemoteInterface {
             out.write(new byte[8]);
             long fileSize = 0;
             while ((read = clientData.read(buffer)) != -1) {
-                Peer.write(this.peerId + "/restored/" + filename, ByteBuffer.wrap(buffer.clone(), 0, read), fileSize, false, read);
+                String realpath = filename.substring(filename.lastIndexOf(java.io.File.separator),filename.length());
+                Peer.write(this.peerId + "/restored/" + realpath, ByteBuffer.wrap(buffer.clone(), 0, read), fileSize, false, read);
                 out.write(buffer, 0, read);
                 fileSize += read;
             }
